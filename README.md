@@ -22,7 +22,7 @@ go build
 If you want more detail, you can see more output by setting ```-debugLeader``` to be one of the validators (default: 5). To tweak the parameters of the simulation, run `wendy -h` to see the available options. You can [see some sample output below](#sample-output).
 
 # Research paper
-Dr Klaus Kursawe's original research paper available on [IACR](https://eprint.iacr.org/2020/885) or on the [Vega website](https://vega.xyz/background#published-papers). Or you can watch him talk through the paper on [YouTube](https://www.youtube.com/watch?v=tU3CYpT5-qM):
+Dr Klaus Kursawe's original research paper is available on [IACR](https://eprint.iacr.org/2020/885) or on the [Vega website](https://vega.xyz/background#published-papers). Or you can watch him talk through the paper on [YouTube](https://www.youtube.com/watch?v=tU3CYpT5-qM):
 
 [![Wendy, the good little fairness widget](https://img.youtube.com/vi/tU3CYpT5-qM/0.jpg)](https://www.youtube.com/watch?v=tU3CYpT5-qM)
 
