@@ -1,4 +1,6 @@
-# Wendy, the good little fairness widget
+![wendy](https://user-images.githubusercontent.com/13255539/94931232-6bdf6800-04bf-11eb-8bea-0b3c4dd0858e.png)
+
+The good little fairness widget
 
 An simulation of [Wendy](https://eprint.iacr.org/2020/885), a protocol for implementing different concepts of fairness. 
 
