@@ -39,7 +39,7 @@ type Vote struct {
 
 // Validator State
 
-// Transactions as saved in the internal state of a validator
+// TransactionV as saved in the internal state of a validator
 type TransactionV struct {
 	Marketid     int    `json:"MID"`
 	Payload      string `json:"payl"`
@@ -49,22 +49,22 @@ type TransactionV struct {
 	Votes        []Vote // Who voted for this transaction
 }
 
-type validator_state struct {
-	Id              int
-	Sequence_number int
-	OtherSeqNos     [20]int // Last sequence number seen by others
-	Transactions    []TransactionV
-	IncommingQ      [20][]message // Votes we can't process yet due to the wrong sequence number
-	Br              [][]string    // Used to compute the blockings. For each transactions, store the blocking transactions
-	Q               []string      // List of requests ready for the next block
-	D               []string      // List of requests already dealt with
-	U               []string      // List of all known requests not in Q or D
+type validatorState struct {
+	Id             int
+	SequenceNumber int
+	OtherSeqNos    [20]int // Last sequence number seen by others
+	Transactions   []TransactionV
+	IncommingQ     [20][]message // Votes we can't process yet due to the wrong sequence number
+	Br             [][]string    // Used to compute the blockings. For each transactions, store the blocking transactions
+	Q              []string      // List of requests ready for the next block
+	D              []string      // List of requests already dealt with
+	U              []string      // List of all known requests not in Q or D
 
 }
 
 var worldTime int
 var messageBuffer []message
-var vd [20]validator_state // Max numvber of validators for now
+var vd [20]validatorState // Max numvber of validators for now
 // Debugging and controlling
 var n int // The first validator is ID 1, not 0
 var t int
@@ -162,7 +162,7 @@ func sendMessageWithTime(payload string, mtype string, sender int, receiver int,
 	m1.receiver = receiver
 	m1.content = payload
 	m1.mtype = mtype
-	//messagebuffer=append(messagebuffer,m1);   
+	//messagebuffer=append(messagebuffer,m1);
 	insertSorted(m1)
 }
 
@@ -196,7 +196,7 @@ func generateTraderRequests() {
 	sender := rand.Intn(1000) + 100 // IDs 1-100 are reserved for valifdators
 	//t1.Marketid = rand.Intn(5);
 	t1.Marketid = 1
-	
+
 	temp, _ := json.Marshal(t1.Marketid + 100*worldTime)
 	t1.Payload = string(temp)
 	tenc, _ := json.Marshal(t1)
@@ -212,14 +212,14 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 
 	Checkpoint("A block has been finished", 2)
 	var leader = 1
-	if n > 1 {	
+	if n > 1 {
 		leader = rand.Intn(n-1) + 1
 	}
 	leader = 1 // For testing purposes, we fix the leader.
-		   // TODO: This line should be deleted once we
-		   // are reasonably confident that there's no bugs left;
-		   // for now, it makes looking at the internal state easier
- 		   // if we only need to watch one leader. 
+	// TODO: This line should be deleted once we
+	// are reasonably confident that there's no bugs left;
+	// for now, it makes looking at the internal state easier
+	// if we only need to watch one leader.
 
 	// We simulate the blockchain via the network: essentially,
 	// the leader sends a message with the block content to
@@ -459,7 +459,7 @@ func recompute(id int) {
 		// unprocessed r
 		// All unprocessed messages are in U.
 		i := len(vd[id].U) - 1
-		
+
 		// Now there has to be a much better way to do this; I need Br and
 		// to_be_moved to have as many entries as U
 		// Can I do to_be_moved[len(vd[id].U)] ??
@@ -473,7 +473,7 @@ func recompute(id int) {
 			toBeMoved = append(toBeMoved, false)
 			ii--
 		}
-		
+
 		for i >= 0 {
 			vd[id].Br[i] = []string{vd[id].U[i]} // everyone is in their own blocking set
 			j = len(vd[id].U) - 1
@@ -515,7 +515,7 @@ func recompute(id int) {
 			if !blocked {
 				k := len(vd[id].Br[i]) - 1
 				for k >= 0 {
-					// Now I need to find the index back from the string 
+					// Now I need to find the index back from the string
 					index = indexByString(vd[id].U, vd[id].Br[i][k])
 					if index > -1 {
 						toBeMoved[index] = true
@@ -653,7 +653,7 @@ func processMessage(m message, id int) bool {
 
 		TX := TransactionV{}
 		TX.ReceivedTime = worldTime
-		TX.SeqNumber = vd[id].Sequence_number
+		TX.SeqNumber = vd[id].SequenceNumber
 		t2 := Transaction{}
 		json.Unmarshal([]byte(m.content), &t2)
 		TX.Payload = t2.Payload
@@ -670,7 +670,7 @@ func processMessage(m message, id int) bool {
 		//vd[id] is the state of the current validator
 		if !seen(TX.Payload, id) {
 			//fmt.Println("New Message");
-			vd[id].Sequence_number++
+			vd[id].SequenceNumber++
 			vd[id].Transactions = append(vd[id].Transactions, TX)
 
 			// If the MarketID is 0, that means the message needs no fairness
@@ -703,7 +703,7 @@ func processMessage(m message, id int) bool {
 		vote := Vote{}
 		TX := TransactionV{}
 		json.Unmarshal([]byte(m.content), &vote)
-		if 10 == debugLeader {  //TODO: UGLY
+		if 10 == debugLeader { //TODO: UGLY
 			totalSpread = totalSpread + vote.SeqNumber - vd[id].OtherSeqNos[m.sender]
 			totalVotes++
 			if vote.SeqNumber-vd[id].OtherSeqNos[m.sender] > maxSpread {
@@ -718,15 +718,15 @@ func processMessage(m message, id int) bool {
 			//fmt.Println("Message out of order from",m.sender,". Expecting ",vd[id].Other_Seq_Nos[m.sender]+1," got ",vote.Seq_Number);
 			// If the message is out of order, we just return false; the caller
 
-			return false	
+			return false
 		} else {
 
 			TX.Payload = vote.Payload
 			vd[id].OtherSeqNos[m.sender] = vote.SeqNumber
 			if !seen(vote.Payload, id) {
-				vote.SeqNumber = vd[id].Sequence_number
+				vote.SeqNumber = vd[id].SequenceNumber
 				vote.Sender = m.sender
-				vd[id].Sequence_number++
+				vd[id].SequenceNumber++
 				TX.ReceivedTime = worldTime
 				TX.SeqNumber = vote.SeqNumber
 				//TX.voters=append(TX.voters,m.sender);
@@ -739,7 +739,7 @@ func processMessage(m message, id int) bool {
 			// TODO: For production code, need to check for double votes
 			// Also, maybe better to add a check if the vote was there already before
 			// evaluating
-			
+
 			current_index := idByPayload(TX.Payload, id)
 			if current_index > -1 {
 				//vd[id].Transactions[current_index].voters = append(vd[id].Transactions[current_index].voters,m.sender);
