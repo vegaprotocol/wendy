@@ -2,9 +2,9 @@
 
 The good little fairness widget
 
-An simulation of [Wendy](https://eprint.iacr.org/2020/885), a protocol for implementing different concepts of fairness. 
-
 Wendy acts as an aditional widget for an existing blockchain, and is largely agnostic to the underlying blockchain and its security assumptions. Furthermore, it is possible to apply a the protocol only for a subset of the transactions, and thus run several independent fair markets on the same chain. We have implemented Wendy to run on a simulator to get first performance estimates. As Wendy runs parallel to the actual blockchain, the core impact it has (apart from adding some network traffic) is that some transactions are put into a later block than they would be without fairness.
+
+This repository contains a simulation of [Wendy](https://eprint.iacr.org/2020/885), a protocol for implementing different concepts of fairness. It's not even close to production ready, but it does demonstrate how Wendy impacts performance given various parameters.
 
 ## Results
 - Transactions that relate to a market that needs no fairness are unimpacted; there is no measurable delay here.
@@ -69,3 +69,7 @@ Seq number of  2 is  68
 Seq number of  3 is  72
 Seq number of  4 is  71
 Seq number of  5 is  70
+```
+
+# Footnote
+This simulation lets you tweak the parameters and see how much of an impact implementing Wendy would have on the block placement of orders. This is not a full implementation, or a well-tested one. A full implementation of Wendy will be implemented in [Vega](https://vega.xyz).
