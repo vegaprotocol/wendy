@@ -7,9 +7,9 @@ Wendy acts as an aditional widget for an existing blockchain, and is largely agn
 ## Results
 - Transactions that relate to a market that needs no fairness are unimpacted; there is no measurable delay here.
 - The primary factor under good circumstance is the ratio of blockchain speed to message delivery time. Under optimal conditions, the number of transactions pushed to the next block is exactly that ratio. This means that if Wendy is used as a pre-protocol for:
-  - [Ethereum](https://github.com/ethereum/go-ethereum), there is practically no performance impact
-  - a higher speed protocol like [Hotstuff](https://github.com/hot-stuff/libhotstuff) or [Tendermint](https://github.com/tendermint/tendermint), that ratio can go up (we’d estimate 10-15% of transactions depending on network conditions).
-- In a more erratic network the number of transactions that where delayed in out simulation slightly more than doubled compared to the best case.
+  - [Ethereum](https://github.com/ethereum/go-ethereum), __there is practically no performance impact__
+  - a higher speed protocol like [Hotstuff](https://github.com/hot-stuff/libhotstuff) or [Tendermint](https://github.com/tendermint/tendermint), that ratio can go up . Results suggest __10-15% of transactions would be pushed to the next block__, depending on network conditions).
+- In a more erratic network the number of transactions that where delayed in out simulation slightly more than doubled when compared to the best case.
 
 ## Running the Wendy simulator
 Clone this repository
