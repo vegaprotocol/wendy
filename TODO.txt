@@ -1,0 +1,40 @@
+TODO List
+
+ * Test, test, test
+ * Verify that I handeled all slices correctly and didnt'
+   use a reference when I should have copied
+ * Clean up the data types. Old transactions can be deleted
+   On the long run, I also need to cap D and clear the message buffer.
+ * Market Identifiers can be optimised.
+   They are currently implemented in the blocking function
+   It would actually even better to have validator (id.mid) to
+   keep them completely separate. Only on block delivery would all
+   Q of the leader be flashed. This would massively save resources on
+   recompute(). Doesn't matter for the simulation, though
+ * Insert realistic values for network delay and blockchain performance
+ * Clean up junk code and comberson stuff that is c in go
+ * The handling of sequence numbers is somewhat sub-optimal. Could
+   do with a more clever data structure
+
+Known Issues
+
+Note for a real implementation
+The sequence number thing is fragile. Some recovery is needed
+ * If a sequence number relates to a request that got
+   scheduled, we can skip it
+ * Some resend mechanism
+
+There's some checkes we don't do yet; for example, we know that
+Validatoes don't vote twice for the same tx, so we don't check it.
+
+We have no signatures or proof-of-following-the-protocol in here.
+In the real implementation, every block proposal needs to come
+with the necessary signatures proving it's valid. If things get
+wired, that might be a lot of signatures; there is probably
+a lot of room for improvement there to optimise this, e.g.,
+resending every vote I get right away to all others (with signatures,
+time and order) so they can replicate my state (or use a reliable broadcast
+so they know).
+To keep latency down, we could send the signature blob while the
+block with the corresponding txs is processed by the blockchain,
+and do a post-validity check. New can of worms though...
