@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 )
 
 var args struct {
@@ -33,6 +34,11 @@ func init() {
 
 func main() {
 	flag.Parse()
+
+	if args.n > 19 {
+		fmt.Printf("error: n cannot be > 19\n")
+		os.Exit(1)
+	}
 
 	fmt.Println("Wendy starting")
 	initWendy()
