@@ -35,7 +35,7 @@ Proposing new block:  0 null
 Number of TXs in block:  0
 Number of TXs delayed by Wendy:  0
 Out of order votes in leader buffer:  20
-Worldtime is : 101
+Worldtime is: 101
 Seq number of  1 is  -1
 Seq number of  2 is  -1
 Seq number of  3 is  -1
