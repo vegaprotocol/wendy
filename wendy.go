@@ -233,9 +233,9 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 	var q2, _ = json.Marshal(vd[leader].Q)
 	fmt.Println("Proposing new block: ", len(vd[leader].Q), string(q2))
 	fmt.Println("Number of TXs in block: ", len(vd[leader].Q))
-	fmt.Println("Number of Txs delayed by Wendy: ", len(vd[leader].U))A
+	fmt.Println("Number of Txs delayed by Wendy: ", len(vd[leader].U))
 	// We output the buffer only for one party [TODO]
-	fmt.Println("Out of order votes in leader buffer: ", len(vd[leader].IncommingQ)[2])
+	fmt.Println("Out of order votes in leader buffer: ", len(vd[leader].IncommingQ[2]))
 	fmt.Println("Worldtime is :", worldTime)
 	tmp := 1
 	for tmp <= n {
@@ -449,6 +449,7 @@ func recompute(id int) {
 	//    Not the most efficient; we essentially recompute all Br[][] all the time.
 	var finished bool
 	var index int
+	var j int
 
 	finished = false
 	for !finished {
