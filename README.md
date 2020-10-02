@@ -1,4 +1,4 @@
-![wendy](https://user-images.githubusercontent.com/13255539/94931947-4f8ffb00-04c0-11eb-9e11-3bb213c4c2c3.png)
+<img width="654" alt="w" src="https://user-images.githubusercontent.com/13255539/94933906-ee1d5b80-04c2-11eb-96f1-f65cde7ce83f.png">
 
 The good little fairness widget
 
