@@ -42,28 +42,28 @@ Seq number of  5 is  -1
 We've finished a block with  0 entries
 -----------------------------------------------
 []
-Proposing new block:  0 null
-Number of TXs in block:  0
-Number of Txs delayed by Wendy:  26
+Proposing new block:  23 ["1801","901","3601","4501","2701","10801","9901","7201","9001","11701","8101","5401","6301","12601","13501","15301","14401","16201","18901","20701","17101","21601","18001"]
+Number of TXs in block:  23
+Number of Txs delayed by Wendy:  22
 Out of order votes in leader buffer:  20
-Worldtime is : 202
-Seq number of  1 is  25
-Seq number of  2 is  -1
-Seq number of  3 is  -1
-Seq number of  4 is  -1
-Seq number of  5 is  -1
-We've finished a block with  0 entries
+Worldtime is : 602
+Seq number of  1 is  44
+Seq number of  2 is  15
+Seq number of  3 is  16
+Seq number of  4 is  12
+Seq number of  5 is  19
+We've finished a block with  23 entries
 -----------------------------------------------
-[]
-Proposing new block:  2 ["701","1101"]
-Number of TXs in block:  2
-Number of Txs delayed by Wendy:  103
+Msg 22:922     Msg 21:886     Msg 20:931     Msg 19:895     Msg 18:913     Msg 17:940     Msg 16:958     Msg 15:949     Msg 14:967     Msg 13:976     Msg 12:1039     Msg 11:1048     Msg 10:1021     Msg 9:985     Msg 8:1012     Msg 7:1030     Msg 6:1003     Msg 5:994     Msg 4:1075     Msg 3:1057     Msg 2:1066     Msg 1:1093     Msg 0:1084     -------------------------------------
+Average time:  994
+[1801 901 3601 4501 2701 10801 9901 7201 9001 11701 8101 5401 6301 12601 13501 15301 14401 16201 18901 20701 17101 21601 18001]
+Proposing new block:  55 ["22501","23401","27001","30601","24301","19801","27901","28801","25201","26101","29701","33301","31501","32401","34201","36901","36001","37801","42301","40501","41401","38701","35101","45901","39601","43201","45001","52201","51301","50401","44101","46801","47701","49501","48601","54901","54001","58501","60301","56701","55801","57601","59401","53101","62101","61201","63001","64801","69301","67501","66601","68401","65701","63901","70201"]
+Number of TXs in block:  55
+Number of Txs delayed by Wendy:  22
 Out of order votes in leader buffer:  20
-Worldtime is : 303
-Seq number of  1 is  105
-Seq number of  2 is  0
-Seq number of  3 is  1
-Seq number of  4 is  -1
-Seq number of  5 is  -1
-We've finished a block with  2 entries
-```
+Worldtime is : 1103
+Seq number of  1 is  99
+Seq number of  2 is  68
+Seq number of  3 is  72
+Seq number of  4 is  71
+Seq number of  5 is  70
