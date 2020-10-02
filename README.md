@@ -1,6 +1,6 @@
 # Wendy, the good little fairness widget
 
-An implementation of [Wendy](https://eprint.iacr.org/2020/885), a protocol for implement different concepts of fairness. 
+An implementation of [Wendy](https://eprint.iacr.org/2020/885), a protocol for implementing different concepts of fairness. 
 
 Wendy acts as an aditional widget for an existing blockchain, and is largely agnostic to the underlying blockchain and its security assumptions. Furthermore, it is possible to apply a the protocol only for a subset of the transactions, and thus run several independent fair markets on the same chain. 
 
