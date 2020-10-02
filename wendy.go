@@ -7,56 +7,9 @@ import (
 	"strconv"
 )
 
-//******************************************************************
-//**
-//** TODO List
-//**
-//**   * Test, test, test
-//**   * Verify that I handeled all slices correctly and didnt'
-//**     use a reference when I should have copied
-//**   * Clean up the data types. Old transactions can be deleted
-//**     On the long run, I also need to cap D and clear the message buffer.
-//**   * Market Identifiers can be optimised.
-//**     They are currently implemented in the blocking function
-//**     It would actually even better to have validator (id.mid) to
-//**     keep them completely separate. Only on block delivery would all
-//**     Q of the leader be flashed. This would massively save resources on
-//**     recompute(). Doesn't matter for the simulation, though
-//**   * Insert realistic values for network delay and blockchain performance
-//**   * Clean up junk code and comberson stuff that is c in go
-//**   * The handling of sequence numbers is somewhat sub-optimal. Could
-//**    do with a more clever data structure
-//**  Issues
-//**
-//*****************************************************************************
-//**
-//** Note for a real implementation
-//** The sequence number thing is fragile. Some recovery is needed
-//**	* If a sequence number relates to a request that got
-//**	  scheduled, we can skip it
-//**    * Some resend mechanism
-//**
-//**  There's some checkes we don't do yet; for example, we know that
-//**  Validatoes don't vote twice for the same tx, so we don't check it.
-//**
-//**  We have no signatures or proof-of-following-the-protocol in here.
-//**  In the real implementation, every block proposal needs to come
-//**  with the necessary signatures proving it's valid. If things get
-//**  wired, that might be a lot of signatures; there is probably
-//**  a lot of room for improvement there to optimise this, e.g.,
-//**  resending every vote I get right away to all others (with signatures,
-//**  time and order) so they can replicate my state (or use a reliable broadcast
-//**  so they know).
-//**  To keep latency down, we could send the signature blob while the
-//**  block with the corresponding txs is processed by the blockchain,
-//**  and do a post-validity check. New can of worms though...
-//**********************************************************************
+// Definition of message formats
 
-//******************************************************************
-//** Definition of message formats
-//******************************************************************
-
-//* Generic Message (send by everyone).
+// Generic Message (send by everyone).
 type message struct {
 	sender   int
 	receiver int
@@ -65,7 +18,7 @@ type message struct {
 	content  string
 }
 
-//* Transaction as send by traders (as content of a message)
+// Transaction as send by traders (as content of a message)
 type Transaction struct {
 	Marketid int    `json:"MID"`
 	Payload  string `json:"payl"`
@@ -75,36 +28,33 @@ type Block struct {
 	Payload string `json:"payl"`
 }
 
-// Voting message
+// Vote message
 type Vote struct {
-	Seq_Number    int
-	Marketid      int    `json:"MID"`
-	Payload       string `json:"payl"`
-	Received_time int
-	Sender        int
+	SeqNumber    int
+	Marketid     int    `json:"MID"`
+	Payload      string `json:"payl"`
+	ReceivedTime int
+	Sender       int
 }
 
-//*********************************************************************
-//**
-//** Validator State
-//**
-//*********************************************************************
+// Validator State
+
 // Transactions as saved in the internal state of a validator
-type Transaction_v struct {
-	Marketid      int    `json:"MID"`
-	Payload       string `json:"payl"`
-	Received_time int
-	Seq_Number    int
-	blockers      []int  // Which transaction (by number) is blocking me
-	Votes         []Vote // Who voted for this transaction
+type TransactionV struct {
+	Marketid     int    `json:"MID"`
+	Payload      string `json:"payl"`
+	ReceivedTime int
+	SeqNumber    int
+	blockers     []int  // Which transaction (by number) is blocking me
+	Votes        []Vote // Who voted for this transaction
 }
 
 type validator_state struct {
 	Id              int
 	Sequence_number int
-	Other_Seq_Nos   [20]int // Last sequence number seen by others
-	Transactions    []Transaction_v
-	Incomming_Q     [20][]message // Votes we can't process yet due to the wrong sequence number
+	OtherSeqNos     [20]int // Last sequence number seen by others
+	Transactions    []TransactionV
+	IncommingQ      [20][]message // Votes we can't process yet due to the wrong sequence number
 	Br              [][]string    // Used to compute the blockings. For each transactions, store the blocking transactions
 	Q               []string      // List of requests ready for the next block
 	D               []string      // List of requests already dealt with
@@ -112,30 +62,27 @@ type validator_state struct {
 
 }
 
-var worldtime int
-var messagebuffer []message
+var worldTime int
+var messageBuffer []message
 var vd [20]validator_state // Max numvber of validators for now
 // Debugging and controlling
 var n int // The first validator is ID 1, not 0
 var t int
 var r int
-var debug_leader int // The party we watch for debug messages
-var blockchain_delay int
-var blockchain_rnd int
-var msg_delay int
-var msg_rnd int
+var debugLeader int // The party we watch for debug messages
+var blockchainDelay int
+var blockchainRnd int
+var msgDelay int
+var msgRnd int
 var delay int   // How many ticks to wait until a trader sends a new message
 var runtime int // How long do we want the simulator to run ?
 //Statistical Stuff
-var totalspread int
-var totalvotes int
-var max_spread int
+var totalSpread int
+var totalVotes int
+var maxSpread int
 
-//*********************************************************************
-//*
-//* Tools
-//*
-//**********************************************************************
+// Slice Tools
+
 func RemoveIndexInt(s []int, index int) []int {
 	return append(s[:index], s[index+1:]...)
 }
@@ -175,11 +122,11 @@ func Checkpoint(s string, code int) {
 //* send transactions.. That means that all validators are completely
 //* reactive
 //*********************************************************************
-func send_message(payload string, mtype string, sender int, receiver int) {
-	time := worldtime + msg_delay // Deterministic version that assures no message
+func sendMessage(payload string, mtype string, sender int, receiver int) {
+	time := worldTime + msgDelay // Deterministic version that assures no message
 	// is out of order.
-	if msg_rnd > 0 {
-		time += rand.Intn(msg_rnd)
+	if msgRnd > 0 {
+		time += rand.Intn(msgRnd)
 	}
 	if sender == r {
 		fmt.Println("3 Sends ", payload, "to ", receiver, ". Will arrive at ", time)
@@ -189,22 +136,22 @@ func send_message(payload string, mtype string, sender int, receiver int) {
 	}
 	// Messages to self take no time
 	if sender == receiver {
-		time = worldtime + 1
+		time = worldTime + 1
 	}
 
-	send_message_withtime(payload, mtype, sender, receiver, time)
+	sendMessageWithTime(payload, mtype, sender, receiver, time)
 }
 
-func insert_sorted(m message) {
-	messagebuffer = append(messagebuffer, m)
-	blen := len(messagebuffer) - 1
+func insertSorted(m message) {
+	messageBuffer = append(messageBuffer, m)
+	blen := len(messageBuffer) - 1
 	if blen >= 0 {
 		i := 0
-		for m.time > messagebuffer[i].time && i <= blen+1 {
+		for m.time > messageBuffer[i].time && i <= blen+1 {
 			i++
 		} // for
-		copy(messagebuffer[i+1:], messagebuffer[i:])
-		messagebuffer[i] = m
+		copy(messageBuffer[i+1:], messageBuffer[i:])
+		messageBuffer[i] = m
 	}
 	//		iii:=0;
 	//		fmt.Println("The SORTED message list after inserting time",m.time," is:")
@@ -216,7 +163,7 @@ func insert_sorted(m message) {
 
 }
 
-func send_message_withtime(payload string, mtype string, sender int, receiver int, time int) {
+func sendMessageWithTime(payload string, mtype string, sender int, receiver int, time int) {
 	m1 := message{}
 	m1.sender = sender
 	m1.time = time
@@ -224,20 +171,20 @@ func send_message_withtime(payload string, mtype string, sender int, receiver in
 	m1.content = payload
 	m1.mtype = mtype
 	//messagebuffer=append(messagebuffer,m1);
-	insert_sorted(m1)
+	insertSorted(m1)
 }
 
-func multicast_message_withtime(payload string, mtype string, sender int, time int) {
+func multicastMessageWithTime(payload string, mtype string, sender int, time int) {
 	// Note: It is important to send a message to self as well for the
 	// counting arguments to work!
 	i := 0
 	for i < n {
-		send_message_withtime(payload, mtype, sender, i+1, time)
+		sendMessageWithTime(payload, mtype, sender, i+1, time)
 		i = i + 1
 	}
 }
 
-func multicast_message(payload string, mtype string, sender int) {
+func multicastMessage(payload string, mtype string, sender int) {
 	// Note: It is important to send a message to self as well for the
 	// counting arguments to work!
 	i := 0
@@ -245,19 +192,19 @@ func multicast_message(payload string, mtype string, sender int) {
 		fmt.Println("3 Multicases ", payload)
 	}
 	for i < n {
-		send_message(payload, mtype, sender, i+1)
+		sendMessage(payload, mtype, sender, i+1)
 		i = i + 1
 	}
 }
 
-func generate_trader_requests() {
+func generateTraderRequests() {
 	// This function is called any tick.
 	// We can send a trade per tick, or more or less
 	t1 := &Transaction{Marketid: 5, Payload: "Test"}
 	sender := rand.Intn(1000) + 100 // IDs 1-100 are reserved for valifdators
 	//t1.Marketid = rand.Intn(5);
 	t1.Marketid = 1
-	temp, _ := json.Marshal(t1.Marketid + 100*worldtime)
+	temp, _ := json.Marshal(t1.Marketid + 100*worldTime)
 	t1.Payload = string(temp)
 	tenc, _ := json.Marshal(t1)
 	//fmt.Println("Error is ",err);
@@ -268,18 +215,19 @@ func generate_trader_requests() {
 	//fmt.Println("Encoded ",t1.payload,t1.marketid," ",string(tenc));
 	//fmt.Println("Encoded ",string(tenc));
 	payload := string(tenc)
-	if (worldtime/delay)*delay == worldtime { // Slow things down a little for testing
-		multicast_message(payload, "TX", sender)
+	if (worldTime/delay)*delay == worldTime { // Slow things down a little for testing
+		multicastMessage(payload, "TX", sender)
 	}
 }
 
-func process_block(b string) { // Simulate the underlying blockchain, i.e.,
+func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 	// Once in a while pick up a block
 	// We do this using the message interface
 
 	Checkpoint("A block has been finished", 2)
 	var leader = 1
 	if n > 1 {
+		// TODO(klaus): this is never used
 		leader = rand.Intn(n-1) + 1
 	}
 	leader = 1 // For testing purposes, fix the leder. TODO: Delete this line.
@@ -289,31 +237,31 @@ func process_block(b string) { // Simulate the underlying blockchain, i.e.,
 	// all parties, and this scheduled the block (this message
 	// is on it's way longer than normal ones as it simulates
 	// the whole back and forth of the blockchain
-	block_delay := blockchain_delay
-	if blockchain_rnd > 0 {
-		block_delay += rand.Intn(blockchain_rnd)
+	blockDelay := blockchainDelay
+	if blockchainRnd > 0 {
+		blockDelay += rand.Intn(blockchainRnd)
 	}
 	var q2, _ = json.Marshal(vd[leader].Q)
 	fmt.Println("Proposing new block: ", len(vd[leader].Q), string(q2))
 	fmt.Println("Number of TXs in block: ", len(vd[leader].Q))
 	fmt.Println("Number of Txs delayed by Wendy: ", len(vd[leader].U))
-	fmt.Println("Out of order votes in leader buffer: ", len(vd[leader].Incomming_Q))
-	fmt.Println("Worldtime is :", worldtime)
+	fmt.Println("Out of order votes in leader buffer: ", len(vd[leader].IncommingQ))
+	fmt.Println("Worldtime is :", worldTime)
 	tmp := 1
 	for tmp <= n {
-		fmt.Println("Seq number of ", tmp, "is ", vd[leader].Other_Seq_Nos[tmp])
+		fmt.Println("Seq number of ", tmp, "is ", vd[leader].OtherSeqNos[tmp])
 		tmp = tmp + 1
 	}
 	//fmt.Println("Leader Buffer: ",vd[leader].Incomming_Q);
 
-	multicast_message_withtime(string(q2), "Block", leader, worldtime+block_delay)
+	multicastMessageWithTime(string(q2), "Block", leader, worldTime+blockDelay)
 
 	// This is a message we just send to the network so that
 	// this function gets triggered again when the next block
 	// can be processed. For Tendermint, this happens right after
 	// the current block has arived. For concurrent blockchains
 	// this could be faster than the multicast.
-	send_message_withtime(string(q2), "BlockTrigger", 0, 0, worldtime+block_delay+1)
+	sendMessageWithTime(string(q2), "BlockTrigger", 0, 0, worldTime+blockDelay+1)
 }
 
 //*************************************************************************************
@@ -322,59 +270,59 @@ func process_block(b string) { // Simulate the underlying blockchain, i.e.,
 //**
 //*************************************************************************************\
 
-func is_blocked(m message, id int) bool {
+func isBlocked(m message, id int) bool {
 	// If blocked means that it is possible that a transaction we haven't
 	// even seen yet might require preference over the transaction in m.
 	// This means we cannot process that request yet
 	// So far we only implement the first scheme, where a message is blocked
 	// if it has received less than t+1 votes.
-	current_index := id_by_payload(m.content, id)
-	if len(vd[id].Transactions[current_index].Votes) > t {
-		fmt.Println("Message ", m.content, " is un blockedi wirh ", len(vd[id].Transactions[current_index].Votes), "votes.")
+	currentIndex := idByPayload(m.content, id)
+	if len(vd[id].Transactions[currentIndex].Votes) > t {
+		fmt.Println("Message ", m.content, " is un blockedi wirh ", len(vd[id].Transactions[currentIndex].Votes), "votes.")
 		return (false)
 	}
 	return true
 
 }
-func is_blocked_t(s string, id int) bool {
+func isBlockedT(s string, id int) bool {
 	// If blocked means that it is possible that a transaction we haven't
 	// even seen yet might require preference over the transaction in m.
 	// This means we cannot process that request yet, or all that need to be
 	// in the same block as it.
 	var temp bool
 	temp = true
-	current_index := id_by_payload(s, id)
+	currentIndex := idByPayload(s, id)
 	//fmt.Println(vd[id].Transactions[current_index].Votes,s,id)
 	//fmt.Println(len(vd[id].Transactions[current_index].Votes),s,id)
-	if len(vd[id].Transactions[current_index].Votes) > t {
+	if len(vd[id].Transactions[currentIndex].Votes) > t {
 		//return (false);
 		temp = false
 	}
-	if id == debug_leader && temp == true {
+	if id == debugLeader && temp {
 		fmt.Println(s, " is blocked")
 	}
 	return (temp)
 }
 
-func seen_earlier(s1 string, s2 string, id1 int, id int) bool {
+func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
 	// From the point of view of id, has seen id seen s1 before s2 ?
 	// If they haven't been seen, we force in a false
 	// If s1 has been seen and s2 has not, we need to return true
-	index1 := id_by_payload(s1, id)
-	index2 := id_by_payload(s2, id) //TODO: Can that be -1 ?
+	index1 := idByPayload(s1, id)
+	index2 := idByPayload(s2, id) //TODO: Can that be -1 ?
 	seq1 := -1
 	seq2 := -1
 	i := len(vd[id].Transactions[index1].Votes) - 1
 	for i >= 0 {
 		if vd[id].Transactions[index1].Votes[i].Sender == id1 {
-			seq1 = vd[id].Transactions[index1].Votes[i].Seq_Number
+			seq1 = vd[id].Transactions[index1].Votes[i].SeqNumber
 		}
 		i--
 	}
 	i = len(vd[id].Transactions[index2].Votes) - 1
 	for i >= 0 {
 		if vd[id].Transactions[index2].Votes[i].Sender == id1 {
-			seq2 = vd[id].Transactions[index2].Votes[i].Seq_Number
+			seq2 = vd[id].Transactions[index2].Votes[i].SeqNumber
 		}
 		i--
 	}
@@ -393,7 +341,7 @@ func seen_earlier(s1 string, s2 string, id1 int, id int) bool {
 	return (false)
 }
 
-func is_blocking(s1 string, s2 string, id int) bool {
+func isBlocking(s1 string, s2 string, id int) bool {
 	// Is s1 blocking s2 (i.e., it needs to be in the same or an earlier block ?
 	//	s1 is blocking s2 if it is possible that all honest parties saw s1
 	//	before s2. Thus, if >=t+1 parties saw s2 before s1, s1 is not blocking s2,
@@ -403,14 +351,14 @@ func is_blocking(s1 string, s2 string, id int) bool {
 
 	// If the two transactions have a different marketid,
 	// then they're not blocking each other.
-	if vd[id].Transactions[id_by_payload(s1, id)].Marketid != vd[id].Transactions[id_by_payload(s2, id)].Marketid {
+	if vd[id].Transactions[idByPayload(s1, id)].Marketid != vd[id].Transactions[idByPayload(s2, id)].Marketid {
 		return false
 	}
 
 	i := n
 	counter := 0
 	for i >= 1 {
-		if seen_earlier(s2, s1, i, id) {
+		if seenEarlier(s2, s1, i, id) {
 			//fmt.Println(i," has seen ",s2," before ",s1);
 			counter++
 		}
@@ -420,14 +368,14 @@ func is_blocking(s1 string, s2 string, id int) bool {
 	// If that's t+1 or more, we return false
 	// BUG: This seems to return true too much
 	//return(false);
-	if id == debug_leader && counter < t+1 {
+	if id == debugLeader && counter < t+1 {
 		fmt.Println(s1, " is blocking ", s2, " because ", counter)
 	}
 
 	return (counter < t+1)
 }
 
-func is_delivered(payload string, id int) bool {
+func isDelivered(payload string, id int) bool {
 	// Returns 'true' if payload has already been processed (is in D)
 	i := len(vd[id].D) - 1
 	for i > 0 {
@@ -453,7 +401,7 @@ func seen(payload string, id int) bool {
 	return false
 }
 
-func index_by_string(array []string, query string) int {
+func indexByString(array []string, query string) int {
 	i := len(array) - 1
 	for i >= 0 {
 		if array[i] == query {
@@ -464,7 +412,7 @@ func index_by_string(array []string, query string) int {
 	return -1
 }
 
-func id_by_payload(payload string, id int) int {
+func idByPayload(payload string, id int) int {
 	// Given the payload of a transaction, return it's position
 	// in our internal datastructure so we can operate on it easier.
 	i := len(vd[id].Transactions) - 1
@@ -479,7 +427,6 @@ func id_by_payload(payload string, id int) int {
 }
 
 func recompute(id int) {
-	//************************************************************************************
 	// This is a major part of Wendy. Each Validarot keeps a set of
 	// transactions it cannot pass on to the blockchain yet because
 	// of a fairness condition (U). What is in this set needs to be
@@ -513,7 +460,6 @@ func recompute(id int) {
 	//
 	//    Issues:
 	//    Not the most efficient; we essentially recompute all Br[][] all the time.
-	//***************************************************************************************
 	var finished bool
 	var index int
 
@@ -525,19 +471,20 @@ func recompute(id int) {
 		// unprocessed r
 		// All unprocessed messages are in U.
 		i := len(vd[id].U) - 1
+		// TODO(klaus): this is never used, is in intended?
 		j := len(vd[id].U) - 1
 
 		// Now there has to be a much better way to do this; I need Br and
 		// to_be_moved to have as many entries as U
 		// Can I do to_be_moved[len(vd[id].U)] ??
 		vd[id].Br = [][]string{}
-		var to_be_moved []bool
-		to_be_moved = []bool{}
+		var toBeMoved []bool
+		toBeMoved = []bool{}
 
 		ii := len(vd[id].U) - 1
 		for ii >= 0 {
 			vd[id].Br = append(vd[id].Br, []string{}) // Create an entry for every entry in U
-			to_be_moved = append(to_be_moved, false)
+			toBeMoved = append(toBeMoved, false)
 			ii--
 		}
 		//if (id==debug_leader) {
@@ -550,14 +497,14 @@ func recompute(id int) {
 			vd[id].Br[i] = []string{vd[id].U[i]} // everyone is in their own blocking set
 			j = len(vd[id].U) - 1
 			for j >= 0 {
-				if i != j && is_blocking(vd[id].U[j], vd[id].U[i], id) { // Don't add me to my blocking set twice
+				if i != j && isBlocking(vd[id].U[j], vd[id].U[i], id) { // Don't add me to my blocking set twice
 					vd[id].Br[i] = append(vd[id].Br[i], vd[id].U[j])
 				}
 				j--
 			} // for j
 			i--
 		} // for i
-		if id == debug_leader {
+		if id == debugLeader {
 			fmt.Println("Overview Br:")
 			fmt.Println("------------------------------------")
 			fmt.Println(vd[id].Br)
@@ -576,9 +523,9 @@ func recompute(id int) {
 			blocked = false
 			j = len(vd[id].Br[i]) - 1
 			for j >= 0 {
-				if is_blocked_t(vd[id].Br[i][j], id) {
+				if isBlockedT(vd[id].Br[i][j], id) {
 					blocked = true
-					if id == debug_leader {
+					if id == debugLeader {
 						fmt.Println("Blockage for  ", i, " because ", j, vd[id].Br[i][j])
 					}
 				} //if
@@ -591,9 +538,9 @@ func recompute(id int) {
 				for k >= 0 {
 					// Now I need to find the index back from the string *SIGH*
 					Checkpoint("I like to move it move it", 3)
-					index = index_by_string(vd[id].U, vd[id].Br[i][k])
+					index = indexByString(vd[id].U, vd[id].Br[i][k])
 					if index > -1 {
-						to_be_moved[index] = true
+						toBeMoved[index] = true
 						Checkpoint("I really like to move it", 3)
 					}
 					k = k - 1
@@ -603,7 +550,7 @@ func recompute(id int) {
 		} //for
 		i = len(vd[id].U) - 1
 		for i >= 0 {
-			if to_be_moved[i] {
+			if toBeMoved[i] {
 				vd[id].Q = append(vd[id].Q, vd[id].Br[i][0]) // Br[i][0] = U[i] ?
 				finished = false
 				j = len(vd[id].U) - 1 // Now we need to look for the corresponding element
@@ -621,26 +568,24 @@ func recompute(id int) {
 	} // not finished
 }
 
-//**********************************************************************************
-//** One of Wendy's core functions: Get in a message and react on it.
-//** We also use this to monitor the blockchain
-//** What this function does is
-//**   * If we see a transaction first, store its data issue a vote
-//**   *  If the market_identifier of that tx is 0, it is pushed right to the blockchain
-//**      and not touched anymore.
-//**   * If we see a vote, count it
-//**   * If we see a block, remove all realated messages from the corresponding Queues
-//**   * If a vote comes in, call recompute to rebuild the internal data structures
-//**     and decide if a tx is through.
-//**
-//**  returns false if the message vouldn't be processed yet (i.e., it is a vote
-//**  with a too high sequence number/.
-//*********************************************************************************
-func process_message(m message, id int) bool {
+// One of Wendy's core functions: Get in a message and react on it.
+// We also use this to monitor the blockchain
+// What this function does is
+//   * If we see a transaction first, store its data issue a vote
+//   *  If the market_identifier of that tx is 0, it is pushed right to the blockchain
+//      and not touched anymore.
+//   * If we see a vote, count it
+//   * If we see a block, remove all realated messages from the corresponding Queues
+//   * If a vote comes in, call recompute to rebuild the internal data structures
+//     and decide if a tx is through.
+//
+//  returns false if the message vouldn't be processed yet (i.e., it is a vote
+//  with a too high sequence number/.
+func processMessage(m message, id int) bool {
 	// Function for Validator id to evaluate the incomming message m
 	// This is the core of Wendy
 
-	if id == debug_leader {
+	if id == debugLeader {
 		fmt.Println(m)
 	}
 	if m.mtype == "Block" && id == 1 {
@@ -655,7 +600,7 @@ func process_message(m message, id int) bool {
 		for i >= 0 {
 			// Now would be a good time for some statistics
 			value, _ := strconv.Atoi(q3[i])
-			time := int(worldtime - (value / 100))
+			time := int(worldTime - (value / 100))
 			fmt.Print("Msg ", i, ":", time, "     ")
 			totaltime = totaltime + time
 			totaltime = totaltime + 1
@@ -669,7 +614,8 @@ func process_message(m message, id int) bool {
 		fmt.Println(q3)
 	}
 
-	if m.mtype == "Block" { // The underlying blockchain finished some
+	if m.mtype == "Block" {
+		// The underlying blockchain finished some
 		// transactions. We have to delete them from
 		// our active queues and put them into the
 		// finished ones
@@ -680,7 +626,6 @@ func process_message(m message, id int) bool {
 		//   Put T in D
 		//   Then we need to go through processing
 		//   just as if we got a vote.
-		//q2 := []string{};
 
 		var q2 []string
 		json.Unmarshal([]byte(m.content), &q2)
@@ -719,7 +664,8 @@ func process_message(m message, id int) bool {
 		// Eventually
 	}
 
-	if m.mtype == "TX" { // We got a new transaction
+	if m.mtype == "TX" {
+		// We got a new transaction
 		// If the market identifier is 0, push
 		// the transaction straight into Q. Or better,
 		// maintain a second set for that, as we don't want
@@ -728,17 +674,18 @@ func process_message(m message, id int) bool {
 		// the final computation. Actually, for the real thing,
 		// we probaby want to redo the recompute thing
 		// so that it only recomputes the affected market identifier.
-		TX := Transaction_v{}
-		TX.Received_time = worldtime
-		TX.Seq_Number = vd[id].Sequence_number
+
+		TX := TransactionV{}
+		TX.ReceivedTime = worldTime
+		TX.SeqNumber = vd[id].Sequence_number
 		t2 := Transaction{}
 		json.Unmarshal([]byte(m.content), &t2)
 		TX.Payload = t2.Payload
 		//fmt.Println("Incomming Vote for validator",id, ": ", TX.Payload);
 		TX.Marketid = t2.Marketid
 		vote := Vote{}
-		vote.Received_time = TX.Received_time
-		vote.Seq_Number = TX.Seq_Number
+		vote.ReceivedTime = TX.ReceivedTime
+		vote.SeqNumber = TX.SeqNumber
 		vote.Payload = TX.Payload
 		vote.Marketid = TX.Marketid
 		vote.Sender = id
@@ -751,14 +698,14 @@ func process_message(m message, id int) bool {
 			vd[id].Sequence_number++
 			vd[id].Transactions = append(vd[id].Transactions, TX)
 
-			//** If the MarketID is 0, that means the message needs no fairness
-			//** Thus, on seeing the transaction, we put it right into our output
-			//** Queue. For this simulation, we only do this when we receive the
-			//** Transaction, not on a vote (i.e., if a trader sends a message to only
-			//** a few traders, or has a slow connection to those traders, suchs to
-			//** be them.
-			//** We also don't vote on this message anymore, or do any checks for
-			//** dublicates here.
+			// If the MarketID is 0, that means the message needs no fairness
+			// Thus, on seeing the transaction, we put it right into our output
+			// Queue. For this simulation, we only do this when we receive the
+			// Transaction, not on a vote (i.e., if a trader sends a message to only
+			// a few traders, or has a slow connection to those traders, suchs to
+			// be them.
+			// We also don't vote on this message anymore, or do any checks for
+			// dublicates here.
 			if vote.Marketid == 0 {
 				//fmt.Println("Appending ",TX.Payload," to leader ", id);
 				vd[id].Q = append(vd[id].Q, TX.Payload)
@@ -767,9 +714,9 @@ func process_message(m message, id int) bool {
 				//fmt.Println("Appending ",TX.Payload," to unprocessed queue ", id);
 				vd[id].U = append(vd[id].U, TX.Payload)
 				if id == r {
-					fmt.Println("# Saw TX, votes ", vote.Seq_Number)
+					fmt.Println("# Saw TX, votes ", vote.SeqNumber)
 				}
-				multicast_message(string(m2), "VOTE", id)
+				multicastMessage(string(m2), "VOTE", id)
 			}
 			//fmt.Println("Queue is now ",len(vd[id].Q));
 
@@ -779,47 +726,47 @@ func process_message(m message, id int) bool {
 	if m.mtype == "VOTE" {
 		// TODO: If the seqnos of the vote don't fit, we need to hold it back.
 		vote := Vote{}
-		TX := Transaction_v{}
+		TX := TransactionV{}
 		json.Unmarshal([]byte(m.content), &vote)
-		if 10 == debug_leader {
-			totalspread = totalspread + vote.Seq_Number - vd[id].Other_Seq_Nos[m.sender]
-			totalvotes++
-			if vote.Seq_Number-vd[id].Other_Seq_Nos[m.sender] > max_spread {
-				max_spread = vote.Seq_Number - vd[id].Other_Seq_Nos[m.sender]
+		if 10 == debugLeader {
+			totalSpread = totalSpread + vote.SeqNumber - vd[id].OtherSeqNos[m.sender]
+			totalVotes++
+			if vote.SeqNumber-vd[id].OtherSeqNos[m.sender] > maxSpread {
+				maxSpread = vote.SeqNumber - vd[id].OtherSeqNos[m.sender]
 			}
 
-			fmt.Println("Receive Vote seq.", vote.Seq_Number, " from P", m.sender, ". Was expecting ", vd[id].Other_Seq_Nos[m.sender]+1)
-			fmt.Println("Avg Spread: ", totalspread/totalvotes, "(", max_spread, ")")
+			fmt.Println("Receive Vote seq.", vote.SeqNumber, " from P", m.sender, ". Was expecting ", vd[id].OtherSeqNos[m.sender]+1)
+			fmt.Println("Avg Spread: ", totalSpread/totalVotes, "(", maxSpread, ")")
 		}
 
 		//if (m.sender ==3 && m.receiver ==1) {
 		if m.sender == r {
-			fmt.Println("3 Voted with no", vote.Seq_Number)
-			fmt.Println("Expected ", vd[id].Other_Seq_Nos[m.sender]+1)
+			fmt.Println("3 Voted with no", vote.SeqNumber)
+			fmt.Println("Expected ", vd[id].OtherSeqNos[m.sender]+1)
 		}
-		if vote.Seq_Number != 0 && vote.Seq_Number != vd[id].Other_Seq_Nos[m.sender]+1 {
+		if vote.SeqNumber != 0 && vote.SeqNumber != vd[id].OtherSeqNos[m.sender]+1 {
 			//vd[id].delayed_votes = append(vd[id].delayed_votes,m);
 			//delayed_votes = append(delayed_votes,m);
 			return false
 			//We're cheap for now, and just resend (Will screw up timing, s fix TODO)
-			//send_message_withtime(m.content,m.mtype,m.sender, m.receiver ,worldtime+20)
+			//sendMessageWithTime(m.content,m.mtype,m.sender, m.receiver ,worldtime+20)
 
 			//fmt.Println("Message out of order from",m.sender,". Expecting ",vd[id].Other_Seq_Nos[m.sender]+1," got ",vote.Seq_Number);
 		} else {
 
 			TX.Payload = vote.Payload
-			vd[id].Other_Seq_Nos[m.sender] = vote.Seq_Number
+			vd[id].OtherSeqNos[m.sender] = vote.SeqNumber
 			if !seen(vote.Payload, id) {
-				vote.Seq_Number = vd[id].Sequence_number
+				vote.SeqNumber = vd[id].Sequence_number
 				vote.Sender = m.sender
 				vd[id].Sequence_number++
-				TX.Received_time = worldtime
-				TX.Seq_Number = vote.Seq_Number
+				TX.ReceivedTime = worldTime
+				TX.SeqNumber = vote.SeqNumber
 				//TX.voters=append(TX.voters,m.sender);
 				vd[id].Transactions = append(vd[id].Transactions, TX)
-				vote.Received_time = worldtime
+				vote.ReceivedTime = worldTime
 				var m2, _ = json.Marshal(TX)
-				multicast_message(string(m2), "VOTE", id)
+				multicastMessage(string(m2), "VOTE", id)
 			} //seen
 			// Manage votes
 			// TODO: Might need review if I count votes double.
@@ -837,15 +784,15 @@ func process_message(m message, id int) bool {
 			//              --> Careful not to create an endless loop here, needs some thinking
 			//		--> Don't forget each vote needs its own time!
 
-			current_index := id_by_payload(TX.Payload, id)
+			current_index := idByPayload(TX.Payload, id)
 			if current_index > -1 {
 				//vd[id].Transactions[current_index].voters = append(vd[id].Transactions[current_index].voters,m.sender);
 				vd[id].Transactions[current_index].Votes = append(vd[id].Transactions[current_index].Votes, vote)
-				if id == debug_leader {
+				if id == debugLeader {
 					fmt.Println(id, " saw ", len(vd[id].Transactions[current_index].Votes), "votes for ", TX.Payload)
 					fmt.Println("Sequence numbers are:")
 					for iii := 0; iii < len(vd[id].Transactions[current_index].Votes); iii++ {
-						fmt.Println(vd[id].Transactions[current_index].Votes[iii].Sender, vd[id].Transactions[current_index].Votes[iii].Seq_Number)
+						fmt.Println(vd[id].Transactions[current_index].Votes[iii].Sender, vd[id].Transactions[current_index].Votes[iii].SeqNumber)
 					} //for
 					fmt.Println("U: ", len(vd[id].U), "Q: ", len(vd[id].Q), " REC", len(vd[id].Br))
 				} //if
@@ -886,7 +833,7 @@ func process_message(m message, id int) bool {
 	return true
 }
 
-func process_incomming_Q(sender int, id int) {
+func processIncommingQ(sender int, id int) {
 	// Old function. Works, but was too slow.
 	// Didn't want to delete it yet just in case.
 	// The i queue contains all messages id received from sender that could not
@@ -904,20 +851,20 @@ func process_incomming_Q(sender int, id int) {
 	//	the first element in the struct, convert it to a string, store the strings in
 	//	Incomming_Q[][], use go sort, and convert it back. Which is ugly. Look for a
 	//	better solution before doing that :)
-	i := len(vd[id].Incomming_Q[sender]) - 1
+	i := len(vd[id].IncommingQ[sender]) - 1
 	qlen := i
-	if process_message(vd[id].Incomming_Q[sender][i], id) {
-		vd[id].Incomming_Q[sender] = RemoveIndexMsg(vd[id].Incomming_Q[sender], i)
+	if processMessage(vd[id].IncommingQ[sender][i], id) {
+		vd[id].IncommingQ[sender] = RemoveIndexMsg(vd[id].IncommingQ[sender], i)
 		j := i - 1
 		for j < qlen {
-			qlen = len(vd[id].Incomming_Q[sender]) - 1
+			qlen = len(vd[id].IncommingQ[sender]) - 1
 			for j >= 0 {
-				if process_message(vd[id].Incomming_Q[sender][j], id) {
-					vd[id].Incomming_Q[sender] = RemoveIndexMsg(vd[id].Incomming_Q[sender], j)
+				if processMessage(vd[id].IncommingQ[sender][j], id) {
+					vd[id].IncommingQ[sender] = RemoveIndexMsg(vd[id].IncommingQ[sender], j)
 				} // if
 				j--
 			} // for
-			j = len(vd[id].Incomming_Q[sender]) - 1
+			j = len(vd[id].IncommingQ[sender]) - 1
 		}
 	} // if
 }
@@ -928,24 +875,24 @@ func seq(m message) int {
 		return -1
 	}
 	_ = json.Unmarshal([]byte(m.content), &v)
-	return v.Seq_Number
+	return v.SeqNumber
 
 }
 
-func process_incomming_Q_new(m message) {
+func processIncommingQNew(m message) {
 	// The i queue contains all messages id received from sender that could not
 	// be processed for now because they are voting messages with a future sequence number.
 	// The last message here is that last added; if this one is out of order, all others
 	// in the queue stay so. Otherwise, we replay the entire queue until it didn't
 	//iii:=0
 	id := m.receiver
-	qlen := len(vd[id].Incomming_Q[m.sender]) - 1
-	qlen2 := len(vd[id].Incomming_Q[m.sender]) - 1
+	qlen := len(vd[id].IncommingQ[m.sender]) - 1
+	qlen2 := len(vd[id].IncommingQ[m.sender]) - 1
 	// First, we process the new message..
 	// if it goes through, we can eat up other messages in the queue
 	// and don't need to sort.
 	// Else, it is no part of the queue and we need to resort.
-	if process_message(m, m.receiver) {
+	if processMessage(m, m.receiver) {
 		//iii=0;
 		//fmt.Println("The INITIAL list for V",id," and sender ",m.sender,"is")
 		//for (iii<len(vd[id].Incomming_Q[m.sender])) {
@@ -955,7 +902,7 @@ func process_incomming_Q_new(m message) {
 		//fmt.Println(" ");
 		j := 0
 		for j <= qlen2 {
-			if process_message(vd[id].Incomming_Q[m.sender][j], id) {
+			if processMessage(vd[id].IncommingQ[m.sender][j], id) {
 				j++
 				//fmt.Println("Processing Seq:",seq(vd[id].Incomming_Q[m.sender][j-1]));
 			} else {
@@ -974,7 +921,7 @@ func process_incomming_Q_new(m message) {
 		//		}//for
 		//		fmt.Println("J is ",j, "and the seq no in question was",seq(m));
 		if j > 0 {
-			vd[id].Incomming_Q[m.sender] = append(vd[id].Incomming_Q[m.sender][:0], vd[id].Incomming_Q[m.sender][j:]...)
+			vd[id].IncommingQ[m.sender] = append(vd[id].IncommingQ[m.sender][:0], vd[id].IncommingQ[m.sender][j:]...)
 		}
 		//		iii=0;
 		//		fmt.Println("The AFTER list for V",id," and sender ",m.sender,"is")
@@ -990,16 +937,16 @@ func process_incomming_Q_new(m message) {
 		// unblocked.
 	} else {
 		//fmt.Println("No processing. Adding ",seq(m));
-		vd[id].Incomming_Q[m.sender] = append(vd[id].Incomming_Q[m.sender], m)
+		vd[id].IncommingQ[m.sender] = append(vd[id].IncommingQ[m.sender], m)
 		if qlen >= 0 {
 			i := 0
-			for seq(m) > seq(vd[id].Incomming_Q[m.sender][i]) && i <= qlen+1 {
+			for seq(m) > seq(vd[id].IncommingQ[m.sender][i]) && i <= qlen+1 {
 				i++
 			} // for
 			//fmt.Println("Inserting at place ",i,qlen);
 			//fmt.Println(vd[id].Incomming_Q[m.sender]);
-			copy(vd[id].Incomming_Q[m.sender][i+1:], vd[id].Incomming_Q[m.sender][i:])
-			vd[id].Incomming_Q[m.sender][i] = m
+			copy(vd[id].IncommingQ[m.sender][i+1:], vd[id].IncommingQ[m.sender][i:])
+			vd[id].IncommingQ[m.sender][i] = m
 			//fmt.Println("The sorted list is");
 			//fmt.Println(vd[id].Incomming_Q[m.sender]);
 			//iii=0;
@@ -1023,13 +970,13 @@ func process_incomming_Q_new(m message) {
 // WIP: CLean the buffers of messages that have already been processed
 // Incompatible with lastmsg
 // Things that also could be cleaned: TX Buffer
-func clean_memory() {
+func cleanMemory() {
 	i := 0
-	for i < len(messagebuffer)-1 && messagebuffer[i].time < worldtime {
+	for i < len(messageBuffer)-1 && messageBuffer[i].time < worldTime {
 		i++
 	}
 	if i > 0 {
-		messagebuffer = append(messagebuffer[:0], messagebuffer[i:]...)
+		messageBuffer = append(messageBuffer[:0], messageBuffer[i:]...)
 	}
 }
 
@@ -1041,47 +988,47 @@ func network() {
 	// the processing of a new block).
 	// TODO: Just like the Incomming_Q, I could sort the messagebuffer.
 	// Not sure yet if that's worth the effort though.
-	for worldtime < runtime || runtime == 0 {
-		worldtime = worldtime + 1
+	for worldTime < runtime || runtime == 0 {
+		worldTime = worldTime + 1
 		lastmsg := 0
 		lastmsg2 := 0
-		fmt.Println("The time is :", worldtime)
-		generate_trader_requests()
-		i := len(messagebuffer) - 1 //TODO: Needs optimizing :)
+		fmt.Println("The time is :", worldTime)
+		generateTraderRequests()
+		i := len(messageBuffer) - 1 //TODO: Needs optimizing :)
 		lastmsg = lastmsg2          //Since e're counting down, no need
 		if lastmsg < 0 {
 			lastmsg = 0
 		} //to check smaller entries than the last
 		//successfull one from last time.
 		for i >= lastmsg {
-			m := messagebuffer[i]
-			if m.time > worldtime {
+			m := messageBuffer[i]
+			if m.time > worldTime {
 				lastmsg2 = i
 			} // lastmsg2 now should be the smallest i with a message still to be delivered
 			// so everything in the messagebuffer smaller than lastmsg2 can be ignored from now
 			// on. For a more serious implementation, we should use some form of ringbuffer
 			// here, but for our purposes this will do.
 
-			if m.time == worldtime {
+			if m.time == worldTime {
 				//fmt.Println("The message is ",m.time,"  ",m.content);
 				if m.mtype == "VOTE" {
-					process_incomming_Q_new(m)
+					processIncommingQNew(m)
 					//if (m.sender < 20) {
 					//vd[m.receiver].Incomming_Q[m.sender] = append(vd[m.receiver].Incomming_Q[m.sender],m)
 					//process_incomming_Q(m.sender,m.receiver);
 				} else {
-					_ = process_message(m, m.receiver)
+					_ = processMessage(m, m.receiver)
 				}
-				//process_message(m,m.receiver);
+				//processMessage(m,m.receiver);
 				if m.mtype == "BlockTrigger" {
-					process_block(m.content)
+					processBlock(m.content)
 				}
 			}
 			i = i - 1
 		}
 	}
 }
-func network_new() {
+func networkNew() {
 	// Network simulator.
 	// Essentially, we just add one tick and see if there's an undelivered
 	// for that time, and then process it. There is a special message type
@@ -1089,39 +1036,40 @@ func network_new() {
 	// the processing of a new block).
 	// TODO: Just like the Incomming_Q, I could sort the messagebuffer.
 	// Not sure yet if that's worth the effort though.
-	for worldtime < runtime || runtime == 0 {
-		worldtime = worldtime + 1
+	for worldTime < runtime || runtime == 0 {
+		worldTime = worldTime + 1
 		lastmsg := 0
 		//fmt.Println("The time is :",worldtime);
-		generate_trader_requests()
+		generateTraderRequests()
 		if lastmsg < 0 {
 			lastmsg = 0
 		} //to check smaller entries than the last
 		//successfull one from last time.
 		i := lastmsg
-		for i < len(messagebuffer) {
-			m := messagebuffer[i]
-			if m.time > worldtime {
+		for i < len(messageBuffer) {
+			m := messageBuffer[i]
+			if m.time > worldTime {
+				// TODO(klaus): this is never used, is it intended?
 				lastmsg = i
-				i = len(messagebuffer)
+				i = len(messageBuffer)
 			} // lastmsg2 now should be the smallest i with a message still to be delivered
 			// so everything in the messagebuffer smaller than lastmsg2 can be ignored from now
 			// on. For a more serious implementation, we should use some form of ringbuffer
 			// here, but for our purposes this will do.
 
-			if m.time == worldtime {
+			if m.time == worldTime {
 				//fmt.Println("The message is ",m.time,"  ",m.content);
 				if m.mtype == "VOTE" {
-					process_incomming_Q_new(m)
+					processIncommingQNew(m)
 					//if (m.sender < 20) {
 					//vd[m.receiver].Incomming_Q[m.sender] = append(vd[m.receiver].Incomming_Q[m.sender],m)
 					//process_incomming_Q(m.sender,m.receiver);
 				} else {
-					_ = process_message(m, m.receiver)
+					_ = processMessage(m, m.receiver)
 				}
-				//process_message(m,m.receiver);
+				//processMessage(m,m.receiver);
 				if m.mtype == "BlockTrigger" {
-					process_block(m.content)
+					processBlock(m.content)
 				}
 			}
 			i = i + 1
@@ -1136,17 +1084,17 @@ func network_new() {
 	//fmt.Println(vd[1].Transactions[5].Votes);
 }
 
-func init_wendy() {
+func initWendy() {
 	fmt.Println("Wendy initializing")
-	totalspread = 0
-	totalvotes = 0
-	max_spread = 0
-	worldtime = 0
+	totalSpread = 0
+	totalVotes = 0
+	maxSpread = 0
+	worldTime = 0
 	i := 19
 	for i > 0 {
 		j := 19
 		for j > 0 {
-			vd[i].Other_Seq_Nos[j] = -1
+			vd[i].OtherSeqNos[j] = -1
 			j = j - 1
 		}
 		i = i - 1

@@ -35,18 +35,18 @@ func main() {
 	flag.Parse()
 
 	fmt.Println("Wendy starting")
-	init_wendy()
+	initWendy()
 	r = args.r
 	n = args.n
 	t = args.t
-	debug_leader = args.debugLeader
+	debugLeader = args.debugLeader
 	delay = args.delay
-	msg_delay = args.msgDelay
-	msg_rnd = args.msgRnd
-	blockchain_delay = args.blockchainDelay
-	blockchain_rnd = args.blockchainRnd
+	msgDelay = args.msgDelay
+	msgRnd = args.msgRnd
+	blockchainDelay = args.blockchainDelay
+	blockchainRnd = args.blockchainRnd
 	runtime = args.runtime
 	//messagebuffer={};
-	send_message_withtime("NIL", "BlockTrigger", 0, 0, worldtime+101)
-	network_new()
+	sendMessageWithTime("NIL", "BlockTrigger", 0, 0, worldTime+101)
+	networkNew()
 }
