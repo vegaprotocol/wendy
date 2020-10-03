@@ -59,7 +59,7 @@ type validatorState struct {
 	Transactions   []TransactionV
 	LastDoneTX     int     // Last Transaction auch that all earlier ones
 			       // have finished (needed to clear memory)
-	IncommingQ     [20][]message // Votes we can't process yet due to the wrong sequence number
+	IncomingQ      [20][]message // Votes we can't process yet due to the wrong sequence number
 	Br             [][]string    // Used to compute the blockings. For each transactions, store the blocking transactions
 	Q              []string      // List of requests ready for the next block
 	D              []string      // List of requests already dealt with
@@ -263,10 +263,10 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 	var q2, _ = json.Marshal(vd[leader].Q)
 	fmt.Println("Proposing new block: ", len(vd[leader].Q), string(q2))
 	fmt.Println("Number of TXs in block: ", len(vd[leader].Q))
-	fmt.Println("Number of Txs delayed by Wendy: ", len(vd[leader].U))
+	fmt.Println("Number of TXs delayed by Wendy: ", len(vd[leader].U))
 	// We output the buffer only for one party [TODO]
-	fmt.Println("Out of order votes in leader buffer: ", len(vd[leader].IncommingQ[2]))
-	fmt.Println("Worldtime is :", worldTime)
+	fmt.Println("Out of order votes in leader buffer: ", len(vd[leader].IncomingQ[2]))
+	fmt.Println("Worldtime is:", worldTime)
 	tmp := 1
 	for tmp <= n {
 		fmt.Println("Seq number of ", tmp, "is ", vd[leader].OtherSeqNos[tmp])
@@ -324,7 +324,7 @@ func isBlockedT(s string, id int) bool {
 }
 
 func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
-	// From the point of view of id, has seen id seen s1 before s2 ?
+	// From the point of view of id, has seen id seen s1 before s2?
 	// If they haven't been seen, we force in a false
 	// If s1 has been seen and s2 has not, we need to return true
 	index1 := idByPayload(s1, id)
@@ -353,7 +353,7 @@ func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
 		return (false)
 	} // If s2 hasb't been seen either, it hasn't
 	// This means that if neither has been seem, we return false;
-	//   If that is the case, how did we get here ?
+	//   If that is the case, how did we get here?
 	if seq1 < seq2 {
 		return (true)
 	} // If both have been seen, their sequence number decides
@@ -361,7 +361,7 @@ func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
 }
 
 func isBlocking(s1 string, s2 string, id int) bool {
-	// Is s1 blocking s2 (i.e., it needs to be in the same or an earlier block ?
+	// Is s1 blocking s2 (i.e., it needs to be in the same or an earlier block?
 	//	s1 is blocking s2 if it is possible that all honest parties saw s1
 	//	before s2. Thus, if >=t+1 parties saw s2 before s1, s1 is not blocking s2,
 
@@ -590,7 +590,7 @@ func recompute(id int) {
 //  with a too high sequence number/.
 
 func processMessage(m message, id int) bool {
-	// Function for Validator id to evaluate the incomming message m
+	// Function for Validator id to evaluate the incoming message m
 	// This is the core of Wendy
 
 	if id == debugLeader {
@@ -690,7 +690,7 @@ func processMessage(m message, id int) bool {
 		t2 := Transaction{}
 		json.Unmarshal([]byte(m.content), &t2)
 		TX.Payload = t2.Payload
-		//fmt.Println("Incomming Vote for validator",id, ": ", TX.Payload);
+		//fmt.Println("Incoming Vote for validator",id, ": ", TX.Payload);
 		TX.Marketid = t2.Marketid
 		vote := Vote{}
 		vote.ReceivedTime = TX.ReceivedTime
@@ -793,7 +793,7 @@ func processMessage(m message, id int) bool {
 	return true
 }
 
-func processIncommingQ(sender int, id int) {
+func processIncomingQ(sender int, id int) {
 	// Old function. Works, but was too slow.
 	// Didn't want to delete it yet just in case.
 	// The i queue contains all messages id received from sender that could not
@@ -809,22 +809,22 @@ func processIncommingQ(sender int, id int) {
 	//	As go doesn't seem to directly support sorting slices of structs according to one
 	//	element in the struct, the easiest way would be to have the sequence number be
 	//	the first element in the struct, convert it to a string, store the strings in
-	//	Incomming_Q[][], use go sort, and convert it back. Which is ugly. Look for a
+	//	Incoming_Q[][], use go sort, and convert it back. Which is ugly. Look for a
 	//	better solution before doing that :)
-	i := len(vd[id].IncommingQ[sender]) - 1
+	i := len(vd[id].IncomingQ[sender]) - 1
 	qlen := i
-	if processMessage(vd[id].IncommingQ[sender][i], id) {
-		vd[id].IncommingQ[sender] = RemoveIndexMsg(vd[id].IncommingQ[sender], i)
+	if processMessage(vd[id].IncomingQ[sender][i], id) {
+		vd[id].IncomingQ[sender] = RemoveIndexMsg(vd[id].IncomingQ[sender], i)
 		j := i - 1
 		for j < qlen {
-			qlen = len(vd[id].IncommingQ[sender]) - 1
+			qlen = len(vd[id].IncomingQ[sender]) - 1
 			for j >= 0 {
-				if processMessage(vd[id].IncommingQ[sender][j], id) {
-					vd[id].IncommingQ[sender] = RemoveIndexMsg(vd[id].IncommingQ[sender], j)
+				if processMessage(vd[id].IncomingQ[sender][j], id) {
+					vd[id].IncomingQ[sender] = RemoveIndexMsg(vd[id].IncomingQ[sender], j)
 				} // if
 				j--
 			} // for
-			j = len(vd[id].IncommingQ[sender]) - 1
+			j = len(vd[id].IncomingQ[sender]) - 1
 		}
 	} // if
 }
@@ -839,15 +839,15 @@ func seq(m message) int {
 
 }
 
-func processIncommingQNew(m message) {
+func processIncomingQNew(m message) {
 	// The i queue contains all messages id received from sender that could not
 	// be processed for now because they are voting messages with a future sequence number.
 	// The last message here is that last added; if this one is out of order, all others
 	// in the queue stay so. Otherwise, we replay the entire queue until it didn't
 	//iii:=0
 	id := m.receiver
-	qlen := len(vd[id].IncommingQ[m.sender]) - 1
-	qlen2 := len(vd[id].IncommingQ[m.sender]) - 1
+	qlen := len(vd[id].IncomingQ[m.sender]) - 1
+	qlen2 := len(vd[id].IncomingQ[m.sender]) - 1
 	// First, we process the new message..
 	// if it goes through, we can eat up other messages in the queue
 	// and don't need to sort.
@@ -855,34 +855,34 @@ func processIncommingQNew(m message) {
 	if processMessage(m, m.receiver) {
 		j := 0
 		for j <= qlen2 {
-			if processMessage(vd[id].IncommingQ[m.sender][j], id) {
+			if processMessage(vd[id].IncomingQ[m.sender][j], id) {
 				j++
-				//fmt.Println("Processing Seq:",seq(vd[id].Incomming_Q[m.sender][j-1]));
+				//fmt.Println("Processing Seq:",seq(vd[id].Incoming_Q[m.sender][j-1]));
 			} else {
 				qlen2 = -1
 			}
-			//fmt.Println("Before", len(vd[id].Incomming_Q[m.sender]));
+			//fmt.Println("Before", len(vd[id].Incoming_Q[m.sender]));
 			//fmt.Println("J was",j);
 		} //for j<qlen2
 		// Now we have processed a number of transactions, and we need to
 		// delete them from the message list
 		if j > 0 {
-			vd[id].IncommingQ[m.sender] = append(vd[id].IncommingQ[m.sender][:0], vd[id].IncommingQ[m.sender][j:]...)
+			vd[id].IncomingQ[m.sender] = append(vd[id].IncomingQ[m.sender][:0], vd[id].IncomingQ[m.sender][j:]...)
 		}
 
 		// If we didn't process the new element successfully, we need to insert
-		// it at its right position in the incomming queue. No other element
+		// it at its right position in the incoming queue. No other element
 		// in that queue needs processing, as none of them can have gotten
 		// unblocked.
 	} else {
-		vd[id].IncommingQ[m.sender] = append(vd[id].IncommingQ[m.sender], m)
+		vd[id].IncomingQ[m.sender] = append(vd[id].IncomingQ[m.sender], m)
 		if qlen >= 0 {
 			i := 0
-			for seq(m) > seq(vd[id].IncommingQ[m.sender][i]) && i <= qlen+1 {
+			for seq(m) > seq(vd[id].IncomingQ[m.sender][i]) && i <= qlen+1 {
 				i++
 			} // for
-			copy(vd[id].IncommingQ[m.sender][i+1:], vd[id].IncommingQ[m.sender][i:])
-			vd[id].IncommingQ[m.sender][i] = m
+			copy(vd[id].IncomingQ[m.sender][i+1:], vd[id].IncomingQ[m.sender][i:])
+			vd[id].IncomingQ[m.sender][i] = m
 		}
 	}
 }
@@ -893,7 +893,7 @@ func processIncommingQNew(m message) {
 //**
 //********************************************************************************
 
-// WIP: CLean the buffers of messages that have already been processed
+// WIP: Clean the buffers of messages that have already been processed
 // Incompatible with lastmsg
 // Things that also could be cleaned: TX Buffer
 func cleanMemory() {
@@ -937,10 +937,10 @@ func network() {
 			if m.time == worldTime {
 				//fmt.Println("The message is ",m.time,"  ",m.content);
 				if m.mtype == "VOTE" {
-					processIncommingQNew(m)
+					processIncomingQNew(m)
 					//if (m.sender < 20) {
-					//vd[m.receiver].Incomming_Q[m.sender] = append(vd[m.receiver].Incomming_Q[m.sender],m)
-					//process_incomming_Q(m.sender,m.receiver);
+					//vd[m.receiver].Incoming_Q[m.sender] = append(vd[m.receiver].Incoming_Q[m.sender],m)
+					//process_incoming_Q(m.sender,m.receiver);
 				} else {
 					_ = processMessage(m, m.receiver)
 				}
@@ -959,7 +959,7 @@ func networkNew() {
 	// for that time, and then process it. There is a special message type
 	// BlockTrigger used to simulate the underlying blockchains (i.e., trigger
 	// the processing of a new block).
-	// TODO: Just like the Incomming_Q, I could sort the messagebuffer.
+	// TODO: Just like the Incoming_Q, I could sort the messagebuffer.
 	// Not sure yet if that's worth the effort though.
 	lastmsg :=0
 	for worldTime < runtime || runtime == 0 {
@@ -990,10 +990,10 @@ func networkNew() {
 			if m.time == worldTime {
 				//fmt.Println("The message is ",m.time,"  ",m.content);
 				if m.mtype == "VOTE" {
-					processIncommingQNew(m)
+					processIncomingQNew(m)
 					//if (m.sender < 20) {
-					//vd[m.receiver].Incomming_Q[m.sender] = append(vd[m.receiver].Incomming_Q[m.sender],m)
-					//process_incomming_Q(m.sender,m.receiver);
+					//vd[m.receiver].Incoming_Q[m.sender] = append(vd[m.receiver].Incoming_Q[m.sender],m)
+					//process_incoming_Q(m.sender,m.receiver);
 				} else {
 					_ = processMessage(m, m.receiver)
 				}
