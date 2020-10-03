@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 )
 
 var args struct {
@@ -26,7 +25,7 @@ func init() {
 	flag.IntVar(&args.debugLeader, "debugLeader", 11, "which party do we want to watch, if > n, none")
 	flag.IntVar(&args.delay, "delay", 9, "speed at which new transactions are inserted")
 	flag.IntVar(&args.msgDelay, "msgDelay", 100, "message basic transmission time")
-	flag.IntVar(&args.msgRnd, "msgRnd", 200, "random interval to be added to msgDelay")
+	flag.IntVar(&args.msgRnd, "msgRnd", 10, "random interval to be added to msgDelay")
 	flag.IntVar(&args.blockchainDelay, "blockchainDelay", 500, "block processing time")
 	flag.IntVar(&args.blockchainRnd, "blockchainRnd", 0, "random part thereof")
 	flag.IntVar(&args.runtime, "runtime", 0, "number of ticks before the simulation stops, run forever by default")
@@ -34,11 +33,6 @@ func init() {
 
 func main() {
 	flag.Parse()
-
-	if args.n > 19 {
-		fmt.Printf("error: n cannot be > 19\n")
-		os.Exit(1)
-	}
 
 	fmt.Println("Wendy starting")
 	initWendy()

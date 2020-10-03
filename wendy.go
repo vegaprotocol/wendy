@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 )
@@ -47,13 +48,17 @@ type TransactionV struct {
 	SeqNumber    int
 	blockers     []int  // Which transaction (by number) is blocking me
 	Votes        []Vote // Who voted for this transaction
-}
+}	
 
 type validatorState struct {
 	Id             int
+	X_Coord	       int    // Coordinates to have a more realistic message delay estimate
+	Y_Coord	       int
 	SequenceNumber int
 	OtherSeqNos    [20]int // Last sequence number seen by others
 	Transactions   []TransactionV
+	LastDoneTX     int     // Last Transaction auch that all earlier ones
+			       // have finished (needed to clear memory)
 	IncommingQ     [20][]message // Votes we can't process yet due to the wrong sequence number
 	Br             [][]string    // Used to compute the blockings. For each transactions, store the blocking transactions
 	Q              []string      // List of requests ready for the next block
@@ -80,7 +85,6 @@ var runtime int // How long do we want the simulator to run ?
 var totalSpread int
 var totalVotes int
 var maxSpread int
-
 // Slice Tools
 
 func RemoveIndexInt(s []int, index int) []int {
@@ -90,6 +94,12 @@ func RemoveIndexStr(s []string, index int) []string {
 	return append(s[:index], s[index+1:]...)
 }
 func RemoveIndexMsg(s []message, index int) []message {
+	if len(s) <= 1 {
+		return nil
+	}
+	return append(s[:index], s[index+1:]...)
+}
+func RemoveIndexTX(s []TransactionV, index int) []TransactionV {
 	if len(s) <= 1 {
 		return nil
 	}
@@ -123,13 +133,32 @@ func Checkpoint(s string, code int) {
 //* reactive
 //*********************************************************************
 func sendMessage(payload string, mtype string, sender int, receiver int) {
+	
+	var distance int;
+	X_Coord := rand.Intn(100);
+	Y_Coord := rand.Intn(100);
 	time := worldTime + msgDelay // Deterministic version that assures no message
-	// is out of order.
+				     // is out of order.
 	if msgRnd > 0 {
 		time += rand.Intn(msgRnd)
 	}
+	if (sender < 20) {
+		X_Coord=vd[sender].X_Coord;
+		Y_Coord=vd[sender].Y_Coord;
+	}
+
+	xd:=(X_Coord-vd[receiver].X_Coord);
+	yd:=(Y_Coord-vd[receiver].Y_Coord);
+	distance=int(math.Sqrt((float64(xd*xd+yd*yd))));
+	
+	if (distance == -1) {
+	fmt.Println("OOps")
+	}
+	//time = worldTime+distance+msgRnd;
+	time = worldTime+(distance*100)/msgDelay+msgRnd;
+
 	if sender == r {
-		fmt.Println("3 Sends ", payload, "to ", receiver, ". Will arrive at ", time)
+		fmt.Println(r," Sends ", payload, "to ", receiver, ". Will arrive at ", time)
 	}
 	if sender == 999999 {
 		fmt.Println("Sending Message: ", mtype, payload, time, "from", sender, " to ", receiver)
@@ -202,6 +231,7 @@ func generateTraderRequests() {
 	tenc, _ := json.Marshal(t1)
 	payload := string(tenc)
 	if (worldTime/delay)*delay == worldTime { // Slow things down a little for testing
+		//fmt.Println("Sending TX",payload);
 		multicastMessage(payload, "TX", sender)
 	}
 }
@@ -612,8 +642,11 @@ func processMessage(m message, id int) bool {
 			// Append the transaction to our list of finished transactions
 			vd[id].D = append(vd[id].D, q2[i])
 			//Now we need to delete it from all our buffers
-			// And then recompute the blockings (Uff)
 			// For now, we only delete it from Q and U
+			// EXP: Also delete it from TX
+                        k := idByPayload(q2[i],id);
+			vd[id].Transactions = RemoveIndexTX(vd[id].Transactions,k);
+
 			j := len(vd[id].Q) - 1
 			for j >= 0 {
 				if vd[id].Q[j] == q2[i] {
@@ -884,7 +917,7 @@ func network() {
 		worldTime = worldTime + 1
 		lastmsg := 0
 		lastmsg2 := 0
-		fmt.Println("The time is :", worldTime)
+		//fmt.Println("The time is :", worldTime)
 		generateTraderRequests()
 		i := len(messageBuffer) - 1 //TODO: Needs optimizing :)
 		lastmsg = lastmsg2          //Since e're counting down, no need
@@ -928,10 +961,17 @@ func networkNew() {
 	// the processing of a new block).
 	// TODO: Just like the Incomming_Q, I could sort the messagebuffer.
 	// Not sure yet if that's worth the effort though.
+	lastmsg :=0
 	for worldTime < runtime || runtime == 0 {
+		if (lastmsg > 1) {
+			//fmt.Println("Cleaning buffer. Size was ",len(messageBuffer));
+			messageBuffer = append(messageBuffer[:0], messageBuffer[lastmsg:]...)
+			//fmt.Println("Cleaning buffer. Size is ",len(messageBuffer));
+			lastmsg=0
+		}
 		worldTime = worldTime + 1
-		lastmsg := 0
-		//fmt.Println("The time is :",worldtime);
+		//lastmsg = 0
+		//fmt.Println("The time is :",worldTime);
 		generateTraderRequests()
 		if lastmsg < 0 {
 			lastmsg = 0
@@ -943,11 +983,9 @@ func networkNew() {
 			if m.time > worldTime {
 				// TODO(klaus): this is never used, is it intended?
 				lastmsg = i
+				//fmt.Println("lastMessage is",lastmsg);
 				i = len(messageBuffer)
-			} // lastmsg2 now should be the smallest i with a message still to be delivered
-			// so everything in the messagebuffer smaller than lastmsg2 can be ignored from now
-			// on. For a more serious implementation, we should use some form of ringbuffer
-			// here, but for our purposes this will do.
+			} 
 
 			if m.time == worldTime {
 				//fmt.Println("The message is ",m.time,"  ",m.content);
@@ -961,6 +999,7 @@ func networkNew() {
 				}
 				//processMessage(m,m.receiver);
 				if m.mtype == "BlockTrigger" {
+					
 					processBlock(m.content)
 				}
 			}
@@ -978,6 +1017,9 @@ func initWendy() {
 	worldTime = 0
 	i := 19
 	for i > 0 {
+		vd[i].X_Coord = rand.Intn(100);
+		vd[i].Y_Coord = rand.Intn(100);
+		vd[i].LastDoneTX = -1;
 		j := 19
 		for j > 0 {
 			vd[i].OtherSeqNos[j] = -1
