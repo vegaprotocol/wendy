@@ -118,8 +118,21 @@ func showVotes(id int) {
 		fmt.Println(vd[id].Transactions[lll].Votes)
 		lll--
 	}
-
 }
+
+func showTX(id int) {
+	fmt.Println("Transaction memory of Validator ",id)
+	lll := len(vd[id].Transactions)-1
+	for (lll >= 0) {
+		fmt.Println(vd[id].Transactions[lll])
+		lll--
+	}
+}
+	func showALL(id int) {
+		fmt.Println("Full memory of Validator ",id)
+		fmt.Println(vd[id])
+	}
+
 //*********************************************************************
 //*
 //* Network Simulation
@@ -128,7 +141,7 @@ func showVotes(id int) {
 //*  destination.
 //* For now we're a bit wasteful, as we don't remove historic
 //* entries
-//* As for IDs, we reserve 1-100 for validatorsm and 100+ for traders
+//* As for IDs, we reserve 1-100 for validators and 100+ for traders
 //* ID 0 is used for a control message that simulates an internal
 //* event (it can be reused for a trader though).
 //*
@@ -361,10 +374,10 @@ func isBlockedT(s string, id int) bool {
 	temp = true
 	currentIndex := idByPayload(s, id)
 
-	if (s=="901") {
-		fmt.Println("Just Checking",len(vd[id].Transactions[currentIndex].Votes), currentIndex )
- 	   fmt.Println(vd[id].Transactions[currentIndex].Votes,s,id)
-	}
+	
+	//fmt.Println("Just Checking",len(vd[id].Transactions[currentIndex].Votes), currentIndex )
+	//fmt.Println(vd[id].Transactions[currentIndex].Votes,s,id)
+
 	//fmt.Println(len(vd[id].Transactions[currentIndex].Votes),s,id)
 	if len(vd[id].Transactions[currentIndex].Votes) > t {
 		//return (false);
@@ -887,7 +900,7 @@ func processMessage(m message, id int) bool {
 		if vote.SeqNumber != 0 && vote.SeqNumber != vd[id].OtherSeqNos[m.sender]+1 {
 			//fmt.Println("Message out of order from",m.sender,". Expecting ",vd[id].Other_Seq_Nos[m.sender]+1," got ",vote.Seq_Number);
 			// If the message is out of order, we just return false; the caller
-
+			// Todo: If the vote contains a new transaction, I can send that already
 			return false
 		} else {
 
@@ -916,7 +929,6 @@ func processMessage(m message, id int) bool {
 					}
 					multicastMessage(string(m2), "VOTE", id)
 				}
-				multicastMessage(string(m2), "VOTE", id)
 			} //seen
 			// Manage votes
 			// TODO: For production code, need to check for double votes
@@ -1157,6 +1169,7 @@ func networkNew() {
 		}
 	}
 	// Finishing up
+	endStatus();
 }
 
 func initWendy() {
@@ -1177,4 +1190,14 @@ func initWendy() {
 		}
 		i = i - 1
 	}
+}
+
+func endStatus() {
+	showVotes(1);
+	showTX(1);
+	showTX(2);
+	showTX(3);
+	showTX(4);
+	fmt.Println("Blocked Votes: ",len(vd[1].IncomingQ[2]))
+	fmt.Println(vd[1].IncomingQ[2])
 }
