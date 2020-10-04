@@ -25,15 +25,15 @@ var args struct {
 
 func init() {
 	flag.IntVar(&args.r, "r", 10, "debug switch (ignore for now)")
-	flag.IntVar(&args.n, "n", 5, "number of validators (max 19)")
+	flag.IntVar(&args.n, "n", 4, "number of validators (max 19)")
 	flag.IntVar(&args.t, "t", 1, "number of allowed traitors")
-	flag.IntVar(&args.debugLeader, "debugLeader", 11, "which party do we want to watch, if > n, none")
+	flag.IntVar(&args.debugLeader, "debugLeader", 1, "which party do we want to watch, if > n, none")
 	flag.IntVar(&args.delay, "delay", 9, "speed at which new transactions are inserted")
 	flag.IntVar(&args.msgDelay, "msgDelay", 100, "message basic transmission time")
-	flag.IntVar(&args.msgRnd, "msgRnd", 10, "random interval to be added to msgDelay")
-	flag.IntVar(&args.blockchainDelay, "blockchainDelay", 500, "block processing time")
+	flag.IntVar(&args.msgRnd, "msgRnd", 0, "random interval to be added to msgDelay")
+	flag.IntVar(&args.blockchainDelay, "blockchainDelay", 7500, "block processing time")
 	flag.IntVar(&args.blockchainRnd, "blockchainRnd", 0, "random part thereof")
-	flag.IntVar(&args.runtime, "runtime", 0, "number of ticks before the simulation stops, run forever by default")
+	flag.IntVar(&args.runtime, "runtime", 5000, "number of ticks before the simulation stops, run forever by default")
 	flag.StringVar(&args.withPPROF, "withPPROF", "", "a string containing a directory path in which to store the CPU/MEM profile. profiling is not started if empty")
 }
 
@@ -45,6 +45,11 @@ func main() {
 	r = args.r
 	n = args.n
 	t = args.t
+	if args.n > 19 {
+		fmt.Printf("error: n cannot be > 19\n")
+		os.Exit(1)
+	}
+
 	debugLeader = args.debugLeader
 	delay = args.delay
 	msgDelay = args.msgDelay
@@ -55,10 +60,6 @@ func main() {
 	//messagebuffer={};
 	sendMessageWithTime("NIL", "BlockTrigger", 0, 0, worldTime+101)
 	networkNew()
-	if args.n > 19 {
-		fmt.Printf("error: n cannot be > 19\n")
-		os.Exit(1)
-	}
 
 	var (
 		pprof *pprofh

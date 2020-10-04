@@ -112,6 +112,14 @@ func Checkpoint(s string, code int) {
 	}
 }
 
+func showVotes(id int) {
+	lll := len(vd[id].Transactions)-1
+	for (lll >= 0) {
+		fmt.Println(vd[id].Transactions[lll].Votes)
+		lll--
+	}
+
+}
 //*********************************************************************
 //*
 //* Network Simulation
@@ -132,6 +140,8 @@ func Checkpoint(s string, code int) {
 //* send transactions.. That means that all validators are completely
 //* reactive
 //*********************************************************************
+
+
 func sendMessage(payload string, mtype string, sender int, receiver int) {
 	
 	var distance int;
@@ -155,7 +165,7 @@ func sendMessage(payload string, mtype string, sender int, receiver int) {
 	fmt.Println("OOps")
 	}
 	//time = worldTime+distance+msgRnd;
-	time = worldTime+(distance*100)/msgDelay+msgRnd;
+	//time = worldTime+(distance*100)/msgDelay+msgRnd;
 
 	if sender == r {
 		fmt.Println(r," Sends ", payload, "to ", receiver, ". Will arrive at ", time)
@@ -166,6 +176,38 @@ func sendMessage(payload string, mtype string, sender int, receiver int) {
 	// Messages to self take no time
 	if sender == receiver {
 		time = worldTime + 1
+	}
+
+	if (mtype=="TX") {
+		tmp:=0
+		t2 := Transaction{}
+		json.Unmarshal([]byte(payload), &t2)
+		tmp_payload := t2.Payload
+		json.Unmarshal([]byte(tmp_payload),&tmp)
+		if (tmp > 3700) {   // For now, we only care about 4 transactions
+			time+=20000
+		} else {
+			if (receiver == 1 && tmp == 901) {time = 1100}
+			if (receiver == 1 && tmp == 1801) {time = 1200}
+			if (receiver == 1 && tmp == 2701) {time = 1300}
+			if (receiver == 1 && tmp == 3601) {time = 1400}
+
+			if (receiver == 2 && tmp == 901) {time = 1200}
+			if (receiver == 2 && tmp == 1801) {time = 1300}
+			if (receiver == 2 && tmp == 2701) {time = 1400}
+			if (receiver == 2 && tmp == 3601) {time = 1100}
+
+			if (receiver == 3 && tmp == 901) {time = 1300}
+			if (receiver == 3 && tmp == 1801) {time = 1400}
+			if (receiver == 3 && tmp == 2701) {time = 1100}
+			if (receiver == 3 && tmp == 3601) {time = 1200}
+
+			if (receiver == 4 && tmp == 901) {time = 1400}
+			if (receiver == 4 && tmp == 1801) {time = 1100}
+			if (receiver == 4 && tmp == 2701) {time = 1200}
+			if (receiver == 4 && tmp == 3601) {time = 1300}
+		}
+	
 	}
 
 	sendMessageWithTime(payload, mtype, sender, receiver, time)
@@ -209,9 +251,7 @@ func multicastMessage(payload string, mtype string, sender int) {
 	// Note: It is important to send a message to self as well for the
 	// counting arguments to work!
 	i := 0
-	if sender == r {
-		fmt.Println("3 Multicases ", payload)
-	}
+
 	for i < n {
 		sendMessage(payload, mtype, sender, i+1)
 		i = i + 1
@@ -264,7 +304,16 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 	fmt.Println("Proposing new block: ", len(vd[leader].Q), string(q2))
 	fmt.Println("Number of TXs in block: ", len(vd[leader].Q))
 	fmt.Println("Number of TXs delayed by Wendy: ", len(vd[leader].U))
-	// We output the buffer only for one party [TODO]
+	ii:=len(vd[leader].U)-1;
+	count:=0;
+	for (ii>=0) {
+		if (isBlockedT(vd[leader].U[ii],leader)) {
+			count ++
+		    }
+		ii--
+	}
+	fmt.Println("Of which ",count,"are blocked due to insufficient votes");
+	// We output the buffer only for one party, this is enough
 	fmt.Println("Out of order votes in leader buffer: ", len(vd[leader].IncomingQ[2]))
 	fmt.Println("Worldtime is:", worldTime)
 	tmp := 1
@@ -297,7 +346,7 @@ func isBlocked(m message, id int) bool {
 	// if it has received less than t+1 votes.
 	currentIndex := idByPayload(m.content, id)
 	if len(vd[id].Transactions[currentIndex].Votes) > t {
-		fmt.Println("Message ", m.content, " is un blockedi wirh ", len(vd[id].Transactions[currentIndex].Votes), "votes.")
+		fmt.Println("Message ", m.content, " is unblocked with ", len(vd[id].Transactions[currentIndex].Votes), "votes.")
 		return (false)
 	}
 	return true
@@ -311,8 +360,12 @@ func isBlockedT(s string, id int) bool {
 	var temp bool
 	temp = true
 	currentIndex := idByPayload(s, id)
-	//fmt.Println(vd[id].Transactions[current_index].Votes,s,id)
-	//fmt.Println(len(vd[id].Transactions[current_index].Votes),s,id)
+
+	if (s=="901") {
+		fmt.Println("Just Checking",len(vd[id].Transactions[currentIndex].Votes), currentIndex )
+ 	   fmt.Println(vd[id].Transactions[currentIndex].Votes,s,id)
+	}
+	//fmt.Println(len(vd[id].Transactions[currentIndex].Votes),s,id)
 	if len(vd[id].Transactions[currentIndex].Votes) > t {
 		//return (false);
 		temp = false
@@ -324,13 +377,20 @@ func isBlockedT(s string, id int) bool {
 }
 
 func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
-	// From the point of view of id, has seen id seen s1 before s2?
+	// From the point of view of id, has id1 voted in a way that it has seen s1 before s2?
 	// If they haven't been seen, we force in a false
 	// If s1 has been seen and s2 has not, we need to return true
 	index1 := idByPayload(s1, id)
 	index2 := idByPayload(s2, id) //TODO: Can that be -1 ?
 	seq1 := -1
 	seq2 := -1
+	
+
+	
+	// We now need all the votes id1 send to id, and then see which if s1 or s2 have
+	// the vote with the lower sequence number.
+	// So first, we take s1 (which is TX[index1]), and search for the vote id1 send 
+	// for it. seq 1 is then the seqeunce number id1 attached to that vote.
 	i := len(vd[id].Transactions[index1].Votes) - 1
 	for i >= 0 {
 		if vd[id].Transactions[index1].Votes[i].Sender == id1 {
@@ -338,6 +398,7 @@ func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
 		}
 		i--
 	}
+	
 	i = len(vd[id].Transactions[index2].Votes) - 1
 	for i >= 0 {
 		if vd[id].Transactions[index2].Votes[i].Sender == id1 {
@@ -345,15 +406,23 @@ func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
 		}
 		i--
 	}
-	//fmt.Println("Sequence Numbers: ",seq1,seq2);
-	if seq2 == -1 {
+
+	//if (id==debugLeader) {
+	//if(worldTime > 100) {
+	//	fmt.Println("Sequence Numbers for sender ",id1," and votes ",s1,s2,": ",seq1,seq2);
+	//}
+
+	if (seq2 == -1 && seq1 >=0) {
 		return (true)
 	} // If s2 hasn't been seen yet, s1 had been seen earlier
-	if seq1 == -1 {
+	if (seq1==-1 && seq2 == -1)  {
+		return false
+	}
+	if (seq1 == -1) {
 		return (false)
-	} // If s2 hasb't been seen either, it hasn't
+	} // If s2 hasn't been seen either, it hasn't
 	// This means that if neither has been seem, we return false;
-	//   If that is the case, how did we get here?
+	// If that is the case, how did we get here?
 	if seq1 < seq2 {
 		return (true)
 	} // If both have been seen, their sequence number decides
@@ -361,34 +430,37 @@ func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
 }
 
 func isBlocking(s1 string, s2 string, id int) bool {
-	// Is s1 blocking s2 (i.e., it needs to be in the same or an earlier block?
+	// If s1 blocking s2 (i.e., it needs to be in the same or an earlier block?
 	//	s1 is blocking s2 if it is possible that all honest parties saw s1
-	//	before s2. Thus, if >=t+1 parties saw s2 before s1, s1 is not blocking s2,
+	//	before s2. Thus, if >=t+1 parties voted s2 before s1, s1 is not blocking s2
 
-	//so, we go through all ids and count seen_earlier(s2,s1...). If that id
+	// We go through all ids and count seen_earlier(s2,s1...). If that id
 	// hasn't seen s1 at all, it'll report false
-
 	// If the two transactions have a different marketid,
 	// then they're not blocking each other.
-	if vd[id].Transactions[idByPayload(s1, id)].Marketid != vd[id].Transactions[idByPayload(s2, id)].Marketid {
-		return false
-	}
-
+	//if vd[id].Transactions[idByPayload(s1, id)].Marketid != vd[id].Transactions[idByPayload(s2, id)].Marketid {
+	//	return false
+	//}
+	fmt.Println("Comparing ",s1,s2)
 	i := n
 	counter := 0
+	fmt.Println("SeenVotes: ",vd[id].Transactions[idByPayload(s1,id)].Votes," and ", vd[id].Transactions[idByPayload(s2,id)].Votes);
 	for i >= 1 {
 		if seenEarlier(s2, s1, i, id) {
-			//fmt.Println(i," has seen ",s2," before ",s1);
+			fmt.Println(i," has seen ",s2," before ",s1);
 			counter++
 		}
 		i--
 	}
+	//fmt.Println("Counter is",counter);
 	// Counter now says how oftern s2 has been seen before s1.
 	// If that's t+1 or more, we return false
 	if id == debugLeader && counter < t+1 {
 		fmt.Println(s1, " is blocking ", s2, " because ", counter)
 	}
-
+	if counter < t+1 {
+		fmt.Println(s1, " is blocking ", s2, " because ", counter)
+	}
 	return (counter < t+1)
 }
 
@@ -481,14 +553,18 @@ func recompute(id int) {
 	var index int
 	var j int
 
+	fmt.Println("RECOMPUTING",id)
+	showVotes(id);
+	fmt.Println("U: ", len(vd[id].U))
 	finished = false
 	for !finished {
 		finished = true
-		// Whenever the set of unprocessed messages changes,
-		// Recompute all blocking sets B_r for all known and
-		// unprocessed r
+		// Whenever the set of votes or unprocessed messages changes,
+		// recompute all blocking sets B_r for all known and
+		// unprocessed r. This might changr U, and thus be done
+		// repeatedly.
 		// All unprocessed messages are in U.
-		i := len(vd[id].U) - 1
+		
 
 		// Now there has to be a much better way to do this; I need Br and
 		// to_be_moved to have as many entries as U
@@ -504,10 +580,12 @@ func recompute(id int) {
 			ii--
 		}
 
+		i := len(vd[id].U) - 1
 		for i >= 0 {
 			vd[id].Br[i] = []string{vd[id].U[i]} // everyone is in their own blocking set
 			j = len(vd[id].U) - 1
 			for j >= 0 {
+				fmt.Println("Evaluating",i,j)
 				if i != j && isBlocking(vd[id].U[j], vd[id].U[i], id) { // Don't add me to my blocking set twice
 					vd[id].Br[i] = append(vd[id].Br[i], vd[id].U[j])
 				}
@@ -515,6 +593,59 @@ func recompute(id int) {
 			} // for j
 			i--
 		} // for i
+		// Now, if a is blocked by b and b by c, a needs to be blocked by b too
+		// So, we're not done yet
+
+		if id == debugLeader {
+			fmt.Println("Overview Br before filling in:")
+			fmt.Println("------------------------------------")
+			fmt.Println(vd[id].Br)
+			fmt.Println("------------------------------------")
+		}
+		
+		
+		found_target:=false
+		var tmpstr string
+		changed := true
+		for (changed) {
+			changed = false
+			i = len(vd[id].Br)-1;
+		for (i>=0) {   
+			j = len(vd[id].Br)-1;				// We loop through all B[i]s.
+			for (j>=0) {  						// and merge the B[j] of which B[i] contains B[j][0]
+				k1 := len (vd[id].Br[i])-1;		// So, first we loop through all elements
+												// in  the currentB[i]
+				for (k1>=0) {	
+					fmt.Println("Lead: ",vd[id].Br[j][0], "Testing", vd[id].Br[i][k1])			
+					if (vd[id].Br[j][0] == vd[id].Br[i][k1]) {  // Our element in Bi matches the lead of Bj
+						fmt.Println("Lead found",i,j,k1)
+						k2 := len(vd[id].Br[j])-1				// For all elements in Br[j]
+						for (k2>=0) {	
+							found_target = false;
+							k3 := len(vd[id].Br[i])-1
+							tmpstr = vd[id].Br[j][k2]
+							for (k3>=0) {						//... check if they're already in Br[i]
+								if (vd[id].Br[i][k3]==tmpstr) {found_target = true}
+								k3--
+							}
+																// If not, append to Br[i].
+							if (!found_target) {
+								fmt.Println("Appending")
+								vd[id].Br[i]=append(vd[id].Br[i],tmpstr)
+								changed = true
+							}
+							k2--
+						} //k2
+						}// if
+						k1--
+				} //k1
+				j--
+			} //j
+			i--	
+			fmt.Println("I is ",i)
+		}//i 
+	} // changed
+		
 		if id == debugLeader {
 			fmt.Println("Overview Br:")
 			fmt.Println("------------------------------------")
@@ -527,6 +658,11 @@ func recompute(id int) {
 		// If not, we move them from U to Q
 		// We also need to move all entries in Br
 		// fmt.Println("U: ", len(vd[id].U), "Q: ",len(vd[id].Q), " REC", len(vd[id].Br));
+		lll := len(vd[id].Transactions)-1
+			for (lll >= 0) {
+				fmt.Println(vd[id].Transactions[lll].Votes)
+				lll--
+			}
 
 		var blocked bool
 		i = len(vd[id].Br) - 1
@@ -644,9 +780,10 @@ func processMessage(m message, id int) bool {
 			//Now we need to delete it from all our buffers
 			// For now, we only delete it from Q and U
 			// EXP: Also delete it from TX
-                        k := idByPayload(q2[i],id);
-			vd[id].Transactions = RemoveIndexTX(vd[id].Transactions,k);
-
+            k := idByPayload(q2[i],id);
+			if (k>0){
+				vd[id].Transactions = RemoveIndexTX(vd[id].Transactions,k);
+			}
 			j := len(vd[id].Q) - 1
 			for j >= 0 {
 				if vd[id].Q[j] == q2[i] {
@@ -757,15 +894,28 @@ func processMessage(m message, id int) bool {
 			TX.Payload = vote.Payload
 			vd[id].OtherSeqNos[m.sender] = vote.SeqNumber
 			if !seen(vote.Payload, id) {
-				vote.SeqNumber = vd[id].SequenceNumber
-				vote.Sender = m.sender
+				myVote := Vote {0,vote.Marketid,vote.Payload,worldTime,id}
+				myVote.SeqNumber = vd[id].SequenceNumber
+				//vote.Sender = m.sender
 				vd[id].SequenceNumber++
 				TX.ReceivedTime = worldTime
-				TX.SeqNumber = vote.SeqNumber
+				TX.SeqNumber = vote.SeqNumber //TODO ???
 				//TX.voters=append(TX.voters,m.sender);
 				vd[id].Transactions = append(vd[id].Transactions, TX)
-				vote.ReceivedTime = worldTime
-				var m2, _ = json.Marshal(TX)
+				//vote.ReceivedTime = worldTime
+				var m2, _ = json.Marshal(myVote)
+				if vote.Marketid == 0 {
+					//fmt.Println("Appending ",TX.Payload," to leader ", id);
+					vd[id].Q = append(vd[id].Q, TX.Payload)
+				}
+				if vote.Marketid != 0 {
+					//fmt.Println("Appending ",TX.Payload," to unprocessed queue ", id);
+					vd[id].U = append(vd[id].U, TX.Payload)
+					if id == r {
+						fmt.Println("# Saw TX, votes ", vote.SeqNumber)
+					}
+					multicastMessage(string(m2), "VOTE", id)
+				}
 				multicastMessage(string(m2), "VOTE", id)
 			} //seen
 			// Manage votes
