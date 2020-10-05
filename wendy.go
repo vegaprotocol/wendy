@@ -454,13 +454,13 @@ func isBlocking(s1 string, s2 string, id int) bool {
 	//if vd[id].Transactions[idByPayload(s1, id)].Marketid != vd[id].Transactions[idByPayload(s2, id)].Marketid {
 	//	return false
 	//}
-	fmt.Println("Comparing ",s1,s2)
+	//fmt.Println("Comparing ",s1,s2)
 	i := n
 	counter := 0
-	fmt.Println("SeenVotes: ",vd[id].Transactions[idByPayload(s1,id)].Votes," and ", vd[id].Transactions[idByPayload(s2,id)].Votes);
+	//fmt.Println("SeenVotes: ",vd[id].Transactions[idByPayload(s1,id)].Votes," and ", vd[id].Transactions[idByPayload(s2,id)].Votes);
 	for i >= 1 {
 		if seenEarlier(s2, s1, i, id) {
-			fmt.Println(i," has seen ",s2," before ",s1);
+			//fmt.Println(i," has seen ",s2," before ",s1);
 			counter++
 		}
 		i--
@@ -469,9 +469,6 @@ func isBlocking(s1 string, s2 string, id int) bool {
 	// Counter now says how oftern s2 has been seen before s1.
 	// If that's t+1 or more, we return false
 	if id == debugLeader && counter < t+1 {
-		fmt.Println(s1, " is blocking ", s2, " because ", counter)
-	}
-	if counter < t+1 {
 		fmt.Println(s1, " is blocking ", s2, " because ", counter)
 	}
 	return (counter < t+1)
@@ -566,9 +563,9 @@ func recompute(id int) {
 	var index int
 	var j int
 
-	fmt.Println("RECOMPUTING",id)
-	showVotes(id);
-	fmt.Println("U: ", len(vd[id].U))
+	//fmt.Println("RECOMPUTING",id)
+	//showVotes(id);
+	//fmt.Println("U: ", len(vd[id].U))
 	finished = false
 	for !finished {
 		finished = true
@@ -598,7 +595,6 @@ func recompute(id int) {
 			vd[id].Br[i] = []string{vd[id].U[i]} // everyone is in their own blocking set
 			j = len(vd[id].U) - 1
 			for j >= 0 {
-				fmt.Println("Evaluating",i,j)
 				if i != j && isBlocking(vd[id].U[j], vd[id].U[i], id) { // Don't add me to my blocking set twice
 					vd[id].Br[i] = append(vd[id].Br[i], vd[id].U[j])
 				}
@@ -628,10 +624,8 @@ func recompute(id int) {
 			for (j>=0) {  						// and merge the B[j] of which B[i] contains B[j][0]
 				k1 := len (vd[id].Br[i])-1;		// So, first we loop through all elements
 												// in  the currentB[i]
-				for (k1>=0) {	
-					fmt.Println("Lead: ",vd[id].Br[j][0], "Testing", vd[id].Br[i][k1])			
+				for (k1>=0) {				
 					if (vd[id].Br[j][0] == vd[id].Br[i][k1]) {  // Our element in Bi matches the lead of Bj
-						fmt.Println("Lead found",i,j,k1)
 						k2 := len(vd[id].Br[j])-1				// For all elements in Br[j]
 						for (k2>=0) {	
 							found_target = false;
@@ -643,7 +637,6 @@ func recompute(id int) {
 							}
 																// If not, append to Br[i].
 							if (!found_target) {
-								fmt.Println("Appending")
 								vd[id].Br[i]=append(vd[id].Br[i],tmpstr)
 								changed = true
 							}
@@ -655,12 +648,11 @@ func recompute(id int) {
 				j--
 			} //j
 			i--	
-			fmt.Println("I is ",i)
 		}//i 
 	} // changed
 		
 		if id == debugLeader {
-			fmt.Println("Overview Br:")
+			fmt.Println("Overview Br at time", worldTime,":")
 			fmt.Println("------------------------------------")
 			fmt.Println(vd[id].Br)
 			fmt.Println("------------------------------------")
@@ -671,11 +663,7 @@ func recompute(id int) {
 		// If not, we move them from U to Q
 		// We also need to move all entries in Br
 		// fmt.Println("U: ", len(vd[id].U), "Q: ",len(vd[id].Q), " REC", len(vd[id].Br));
-		lll := len(vd[id].Transactions)-1
-			for (lll >= 0) {
-				fmt.Println(vd[id].Transactions[lll].Votes)
-				lll--
-			}
+		// showVotes(id);
 
 		var blocked bool
 		i = len(vd[id].Br) - 1
@@ -911,7 +899,7 @@ func processMessage(m message, id int) bool {
 				myVote.SeqNumber = vd[id].SequenceNumber
 				//vote.Sender = m.sender
 				vd[id].SequenceNumber++
-				TX.ReceivedTime = worldTime
+				TX.ReceivedTime  = worldTime
 				TX.SeqNumber = vote.SeqNumber //TODO ???
 				//TX.voters=append(TX.voters,m.sender);
 				vd[id].Transactions = append(vd[id].Transactions, TX)
