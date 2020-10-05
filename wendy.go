@@ -85,6 +85,9 @@ var runtime int // How long do we want the simulator to run ?
 var totalSpread int
 var totalVotes int
 var maxSpread int
+var totalTX int
+var totalDelayedTX int
+var delayed_insufficient_votesTX int
 // Slice Tools
 
 func RemoveIndexInt(s []int, index int) []int {
@@ -178,7 +181,7 @@ func sendMessage(payload string, mtype string, sender int, receiver int) {
 	fmt.Println("OOps")
 	}
 	//time = worldTime+distance+msgRnd;
-	//time = worldTime+(distance*100)/msgDelay+msgRnd;
+	time = worldTime+(distance*100)/msgDelay+msgRnd;
 
 	if sender == r {
 		fmt.Println(r," Sends ", payload, "to ", receiver, ". Will arrive at ", time)
@@ -191,7 +194,13 @@ func sendMessage(payload string, mtype string, sender int, receiver int) {
 		time = worldTime + 1
 	}
 
-	if (mtype=="TX") {
+	//This is a testroutine to create an order that is bad for fairness
+	//Requires n=4, t=1, msgrnd=0, msgdelay=100, delay 9 and deactivation
+	//of the location, and blocktime = 1100 (else the problem goes
+	// away before wendy needs to act on it)
+	// Turn on by settint the type back to "TX"
+	//It's hard to be a nasty adversary here!
+	if (mtype=="TX_") {								
 		tmp:=0
 		t2 := Transaction{}
 		json.Unmarshal([]byte(payload), &t2)
@@ -315,8 +324,11 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 	}
 	var q2, _ = json.Marshal(vd[leader].Q)
 	fmt.Println("Proposing new block: ", len(vd[leader].Q), string(q2))
-	fmt.Println("Number of TXs in block: ", len(vd[leader].Q))
-	fmt.Println("Number of TXs delayed by Wendy: ", len(vd[leader].U))
+	totalTX+= len(vd[leader].Q)
+	fmt.Println("Number of TXs in block: ", len(vd[leader].Q), "(Total TX: ",totalTX,")")
+	
+    totalDelayedTX+=len(vd[leader].U)
+	fmt.Println("Number of TXs delayed by Wendy: ", len(vd[leader].U), "(Total: ",totalDelayedTX,")")
 	ii:=len(vd[leader].U)-1;
 	count:=0;
 	for (ii>=0) {
@@ -325,7 +337,8 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 		    }
 		ii--
 	}
-	fmt.Println("Of which ",count,"are blocked due to insufficient votes");
+	delayed_insufficient_votesTX+=count
+	fmt.Println("Of which ",count,"are blocked due to insufficient votes (Total:",delayed_insufficient_votesTX,")");
 	// We output the buffer only for one party, this is enough
 	fmt.Println("Out of order votes in leader buffer: ", len(vd[leader].IncomingQ[2]))
 	fmt.Println("Worldtime is:", worldTime)
@@ -391,7 +404,9 @@ func isBlockedT(s string, id int) bool {
 
 func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
 	// From the point of view of id, has id1 voted in a way that it has seen s1 before s2?
-	// If they haven't been seen, we force in a false
+	// If they haven't been seen, we force in a false; this is because a 'true' value
+	//  of seenEarleir is used to unblock transactions; if no information on the order
+	//  is available, we can't do that.
 	// If s1 has been seen and s2 has not, we need to return true
 	index1 := idByPayload(s1, id)
 	index2 := idByPayload(s2, id) //TODO: Can that be -1 ?
@@ -1181,11 +1196,12 @@ func initWendy() {
 }
 
 func endStatus() {
-	showVotes(1);
-	showTX(1);
-	showTX(2);
-	showTX(3);
-	showTX(4);
-	fmt.Println("Blocked Votes: ",len(vd[1].IncomingQ[2]))
-	fmt.Println(vd[1].IncomingQ[2])
+	//showVotes(1);
+	//showTX(1);
+	//showTX(2);
+	//showTX(3);
+	//showTX(4);
+	//fmt.Println("Blocked Votes: ",len(vd[1].IncomingQ[2]))
+	//fmt.Println(vd[1].IncomingQ[2])
+	fmt.Println("Final Statistics: TX: ",totalTX,", Delayed:",totalDelayedTX,",Ins. Votes:",delayed_insufficient_votesTX )
 }
