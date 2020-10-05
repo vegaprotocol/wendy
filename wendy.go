@@ -1434,7 +1434,7 @@ func initWendy() {
 	}
 	i = len(fairnessDef)-1
 	for (i>0){
-		fairnessDef[i] =2
+		fairnessDef[i] =1
 		i--
 	}
 }
