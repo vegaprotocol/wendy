@@ -919,12 +919,28 @@ func recompute(id int) {
 		//    switch of definitions only after a block is finished and Q emptied (assuming)
 		//	  all of Q can be consumed at once reliably), or to have different independent Qs
 		//	  for each fairness definition.
+		//
+		//	  Generally, we would put the transactions in Q into the chain in the 
+		//    order n which they entered Q, eachtogether with all transactions that
+		//    for fairness reasons have to be in the same block (and aren't in yet).
+		//	  Thus, we could store with each TX in Q what the fairness rule was when it
+		//    entered, compute it's dependences according to that rule once it has its
+		//    turn, and that's it. Or, even easier, if we modify the way we put transactions
+		//    into Q, we can just put them in in the right order with stop markers
+		//    (ie.e, tx1, all transactions in B(tx1), marker, tx2, all transactions in B(tx2), ...)
+		//    Then we can just feed the blockchain sequentially, and just have to ensure
+		//    that we stop at a marker if we can't fit in all transactions up to the
+		//    next market. This implicitely takes care of fairness-switching and blocksize
+		//    constraints. The dissadvantage is that the B(tx) sets are are bigger at the
+		//    time they're entered into Q than they need to be at the time when Q is emptied,
+		//    as new votes have turned upby then that could decrease the size of the sets.
 		//    Another thing to consider is to create a virtual subblock 
 		//    with all of Q, take as many block as it needs to transport it, and then move 
 		//    on to the next block. This makes a few things easier, but may waste bandwidth.
 		//    For the current purpose of this simulation, it's enough to just assume
 		//    that the blockchain has enough capacity to consume all of Q and worry
 		//    about this later.
+
 		i = len(vd[id].U) - 1
 		for i >= 0 {
 			if toBeMoved[i] {
