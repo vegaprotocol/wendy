@@ -339,7 +339,7 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 	if n > 1 {
 		leader = rand.Intn(n-1) + 1
 	}
-	leader = 1 // For testing purposes, we fix the leader.
+	//leader = 1 // For testing purposes, we fix the leader.
 	// TODO: This line should be deleted once we
 	// are reasonably confident that there's no bugs left;
 	// for now, it makes looking at the internal state easier
@@ -395,6 +395,53 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 //** Actual Wendy Implementation
 //**
 //*************************************************************************************\
+
+func isBlocking_timed(s1 string, s2 string, id int) bool {
+	// Blocking function for timed fairness. This means, s1 is blocking s2 if there
+	// exists a time x such that all honest parties saw s1 before x and s2 after x.
+	// We can be sure s1 is not blocking s2 if thuch a time does not exist, i.e.,
+	// the smallest time an honest voter for s2 saw is smaller than the largest time
+	// an honest voter for s1 saw.
+	// To compute this, find the largest time of a vote for s1 we can guarantee to
+	// have originated from an honest party (i.e., the time of the t+1st vote) and 
+	// correspondintly for s2.  
+	index1 := idByPayload(s1, id)
+	index2 := idByPayload(s2, id) 
+	time1   := 0;
+	time2   := 0;
+	rank    := 0;
+	i:=len(vd[id].Transactions[index1].Votes)-1
+	j:=0;
+	// We need the t+1st biggest element in s1 and the t+1 smallest in s2
+	for (i>=0) {
+		rank = 0;
+		j = len(vd[id].Transactions[index1].Votes)-1
+	    for (j >0) {
+			if (vd[id].Transactions[index1].Votes[i].ReceivedTime > vd[id].Transactions[index1].Votes[j].ReceivedTime) {
+		 		rank++
+			}
+			j--;
+		}
+		if (rank == t+1) {time1 = vd[id].Transactions[index1].Votes[i].ReceivedTime }
+		i--;
+	}
+
+	for (i>=0) {
+		rank = 0;
+		j = len(vd[id].Transactions[index2].Votes)-1
+	    for (j >0) {
+			if (vd[id].Transactions[index2].Votes[i].ReceivedTime < vd[id].Transactions[index2].Votes[j].ReceivedTime) {
+		 		rank++
+			}
+			j--;
+		}
+		if (rank == t+1) {time2 = vd[id].Transactions[index1].Votes[i].ReceivedTime }
+		i--;
+	}
+
+	return (time2>time1)
+
+}
 
 func isBlocked(m message, id int) bool {
 	// If blocked means that it is possible that a transaction we haven't
