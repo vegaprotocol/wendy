@@ -70,7 +70,9 @@ type validatorState struct {
 
 var worldTime int
 var messageBuffer []message
-var vd [20]validatorState // Max numvber of validators for now
+var vd [20]validatorState // Max number of validators for now
+var fairnessDef[20] int // Fairness definition used for different market identifiers. 
+					    // Also for now limited to 20 market identifiers
 // Debugging and controlling
 var n int // The first validator is ID 1, not 0
 var t int
@@ -169,7 +171,7 @@ func sendMessage(payload string, mtype string, sender int, receiver int) {
 	if msgRnd > 0 {
 		time += rand.Intn(msgRnd)
 	}
-	if sender < 20 {
+	if sender < len(vd) {
 		X_Coord = vd[sender].X_Coord
 		Y_Coord = vd[sender].Y_Coord
 	}
@@ -398,11 +400,24 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 //*************************************************************************************\
 
 func isBlocking(s1 string, s2 string, id int) bool {
-	return isBlocking_order(s1,s2,id)
+	mid1 := vd[id].Transactions[idByPayload(s1,id)].Marketid;
+	mid2 := vd[id].Transactions[idByPayload(s2,id)].Marketid;
+	if (mid1 != mid2) { return false}
+
+	if (mid1 == 1) {return isBlocking_order(s1,s2,id)}
+	if (mid1 == 2) {return isBlocking_timed(s1,s2,id)}
+	if (mid1 == 3) {return isBlocking_none(s1,s2,id)}
+	return false
 }
 
 func isBlockedT(s string, id int) bool {
-	return isBlockedT_order(s,id)
+	mid := vd[id].Transactions[idByPayload(s,id)].Marketid;
+
+
+	if (mid == 1) {return isBlockedT_order(s,id)}
+	if (mid == 2) {return isBlockedT_timed(s,id)}
+	if (mid == 3) {return isBlockedT_none(s,id)}
+	return false
 }
 // No fairness Implementation
 // While we have a manual non-fairness-needed option (Market Identifier 0), a more
@@ -1335,18 +1350,23 @@ func initWendy() {
 	totalVotes = 0
 	maxSpread = 0
 	worldTime = 0
-	i := 19
+	i := len(vd)-1
 	for i > 0 {
 		vd[i].X_Coord = rand.Intn(100)
 		vd[i].Y_Coord = rand.Intn(100)
-		vd[i].LastDoneTX = -1
-		j := 19
+		vd[i].LastDoneTX = -1						
+		j := len(vd)-1
 		for j > 0 {
 			vd[i].OtherSeqNos[j] = -1
 			vd[i].Timestamps[j] = -1
 			j = j - 1
 		}
 		i = i - 1
+	}
+	i = len(fairnessDef)-1
+	for (i>0){
+		fairnessDef[i] =1
+		i--
 	}
 }
 
