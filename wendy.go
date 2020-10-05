@@ -403,10 +403,9 @@ func isBlocking(s1 string, s2 string, id int) bool {
 	mid1 := vd[id].Transactions[idByPayload(s1,id)].Marketid;
 	mid2 := vd[id].Transactions[idByPayload(s2,id)].Marketid;
 	if (mid1 != mid2) { return false}
-
-	if (mid1 == 1) {return isBlocking_order(s1,s2,id)}
-	if (mid1 == 2) {return isBlocking_timed(s1,s2,id)}
-	if (mid1 == 3) {return isBlocking_none(s1,s2,id)}
+	if (fairnessDef[mid1] == 1) {return isBlocking_order(s1,s2,id)}
+	if (fairnessDef[mid1] == 2) {return isBlocking_timed(s1,s2,id)}
+	if (fairnessDef[mid1] == 3) {return isBlocking_none(s1,s2,id)}
 	return false
 }
 
@@ -414,9 +413,9 @@ func isBlockedT(s string, id int) bool {
 	mid := vd[id].Transactions[idByPayload(s,id)].Marketid;
 
 
-	if (mid == 1) {return isBlockedT_order(s,id)}
-	if (mid == 2) {return isBlockedT_timed(s,id)}
-	if (mid == 3) {return isBlockedT_none(s,id)}
+	if (fairnessDef[mid] == 1) {return isBlockedT_order(s,id)}
+	if (fairnessDef[mid] == 2) {return isBlockedT_timed(s,id)}
+	if (fairnessDef[mid] == 3) {return isBlockedT_none(s,id)}
 	return false
 }
 // No fairness Implementation
@@ -434,10 +433,12 @@ func isBlocking_none (s1 string,s2 string,id int) bool {
 	return false
 }
 
+//
 // Timed Fairness Implementation
+//
 
 func getMaxTime(v[] Vote) int {
-	i:= len(v)
+	i:= len(v)-1
 	max:=0
 	for (i>=0) {
 		if (v[i].ReceivedTime > max) {
@@ -449,8 +450,8 @@ func getMaxTime(v[] Vote) int {
 }
 
 func getMinTime(v[] Vote) int {
-	i:= len(v)
-	min:=0
+	i:= len(v)-1
+	min:=v[1].ReceivedTime
 	for (i>=0) {
 		if (v[i].ReceivedTime <min) {
 			min= v[i].ReceivedTime
@@ -469,18 +470,16 @@ func isBlockedT_timed(s string, id int) bool {
 	// unseen transaction has at least one honest timestamp larger than the smallest 
 	// of tx.
 	
-	//Implementation still COMPLETELY UNTESTED!
 	index := idByPayload(s,id)
 	if ((len(vd[id].Transactions[index].Votes)) < t+1) {return true}
 	max:=getMaxTime(vd[id].Transactions[index].Votes);
-
+	
 	i:=1;
 	counter:=0
 	for (i<=n) {
 		if (vd[id].Timestamps[i] > max) {counter++}
 		i++
 	}
-
 	if (counter > t) {return(false)} else {return(true)}
 }
 
@@ -513,7 +512,7 @@ func isBlocking_timed(s1 string, s2 string, id int) bool {
 		if (rank == t+1) {time1 = vd[id].Transactions[index1].Votes[i].ReceivedTime }
 		i--;
 	}
-
+	i=len(vd[id].Transactions[index2].Votes)-1
 	for (i>=0) {
 		rank = 0;
 		j = len(vd[id].Transactions[index2].Votes)-1
@@ -523,14 +522,16 @@ func isBlocking_timed(s1 string, s2 string, id int) bool {
 			}
 			j--;
 		}
-		if (rank == t+1) {time2 = vd[id].Transactions[index1].Votes[i].ReceivedTime }
+		if (rank == t+1) {time2 = vd[id].Transactions[index2].Votes[i].ReceivedTime }
 		i--;
 	}
-
 	return (time2>time1)
 
 }
 
+//
+// Order Fairness Functionality
+//
 func isBlocked(m message, id int) bool {
 	// If blocked means that it is possible that a transaction we haven't
 	// even seen yet might require preference over the transaction in m.
@@ -786,7 +787,7 @@ func recompute(id int) {
 		// So, we're not done yet
 
 		if id == debugLeader {
-			fmt.Println("Overview Br before filling in:")
+			fmt.Println("Overview Br before filling in:",id)
 			fmt.Println("------------------------------------")
 			fmt.Println(vd[id].Br)
 			fmt.Println("------------------------------------")
@@ -1075,7 +1076,7 @@ func processMessage(m message, id int) bool {
 
 			TX.Payload = vote.Payload
 			vd[id].OtherSeqNos[m.sender] = vote.SeqNumber
-			if (vd[id].Timestamps[m.sender] > vote.ReceivedTime) {
+			if (vd[id].Timestamps[m.sender] < vote.ReceivedTime) {
 				vd[id].Timestamps[m.sender] = vote.ReceivedTime
 			}
 			if !seen(vote.Payload, id) {

@@ -27,7 +27,7 @@ func init() {
 	flag.IntVar(&args.r, "r", 10, "debug switch (ignore for now)")
 	flag.IntVar(&args.n, "n", 4, "number of validators (max 19)")
 	flag.IntVar(&args.t, "t", 1, "number of allowed traitors")
-	flag.IntVar(&args.debugLeader, "debugLeader", 12, "which party do we want to watch, if > n, none")
+	flag.IntVar(&args.debugLeader, "debugLeader", 11, "which party do we want to watch, if > n, none")
 	flag.IntVar(&args.delay, "delay", 9, "speed at which new transactions are inserted")
 	flag.IntVar(&args.msgDelay, "msgDelay", 100, "message basic transmission time")
 	flag.IntVar(&args.msgRnd, "msgRnd", 20, "random interval to be added to msgDelay")
