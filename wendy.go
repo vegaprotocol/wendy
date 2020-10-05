@@ -72,7 +72,9 @@ var worldTime int
 var messageBuffer []message
 var vd [20]validatorState // Max number of validators for now
 var fairnessDef[20] int // Fairness definition used for different market identifiers. 
-					    // Also for now limited to 20 market identifiers
+						// Also for now limited to 20 market identifiers
+						// TODO: Eventually, this shouldn't be a global variable
+						// anymore, but a local one. 
 // Debugging and controlling
 var n int // The first validator is ID 1, not 0
 var t int
@@ -399,6 +401,33 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 //**
 //*************************************************************************************\
 
+func switchFairness() {
+// This function demonstrates how the fairness definition can be switched
+// during the life protocol. Usually deactivated to avoid confusion
+// For testing purposes, we assume a static leader (1) and only
+// look at market id 1.
+
+// Example: The order fairness definition allows for transaction sequences
+// that would reqire an arbitratily sized block. We test is the number
+// of unprocessed transactions is unhealthily high, and if so, switch to
+// a definition that can clean up. Once it has done so, we switch back,
+// with some transactions now having moved from U to Q.
+// Note that doint it like this means there's transactions in Q from
+// several different fairness definitions
+  if (len(vd[1].U) > 1000 && fairnessDef[1]==1 ) {
+	fairnessDef[1] = 2;
+	recompute(1)
+	fairnessDef[1] = 1;
+	recompute(1)
+  }
+
+  // Another example, as above one is likely to never trigger. This just
+  // switches after some time.
+  if (worldTime > 4000 && fairnessDef[1]==2) {
+	  fairnessDef[1] = 1
+	  recompute(1)
+  }
+}
 func isBlocking(s1 string, s2 string, id int) bool {
 	mid1 := vd[id].Transactions[idByPayload(s1,id)].Marketid;
 	mid2 := vd[id].Transactions[idByPayload(s2,id)].Marketid;
@@ -874,6 +903,28 @@ func recompute(id int) {
 			} // if (!blocked)
 			i = i - 1
 		} //for
+		// We now move the transactions that are not blocked from U (unscheduled)
+		// to Q (queue with requests for the blockchain to pick up.)
+		// TODO
+		// In the full implementation, this would be more complex. 
+		//    Q cannot just be a linear queue, but needs to remember which transactions
+		//	  belong together in case the underlying blockchain cannot pick up all
+		//    transactions in Q at once. If we don't allow for switching the fairness definition
+		//    on the fly, this would be rather easy - just before a block is collected,
+		//    we can recompute the Br and thus create the appropriate subblocks again.
+		//    If we switch definitions, this is more complicated, as different transactions
+		//    might have ended up in Q for different reasons (and thus also need different
+		//    validations why they are in there). There's a number of ways around this,
+		//    and it needs some discussion which is the best; for example, we could allow a
+		//    switch of definitions only after a block is finished and Q emptied (assuming)
+		//	  all of Q can be consumed at once reliably), or to have different independent Qs
+		//	  for each fairness definition.
+		//    Another thing to consider is to create a virtual subblock 
+		//    with all of Q, take as many block as it needs to transport it, and then move 
+		//    on to the next block. This makes a few things easier, but may waste bandwidth.
+		//    For the current purpose of this simulation, it's enough to just assume
+		//    that the blockchain has enough capacity to consume all of Q and worry
+		//    about this later.
 		i = len(vd[id].U) - 1
 		for i >= 0 {
 			if toBeMoved[i] {
@@ -1336,6 +1387,7 @@ func networkNew() {
 				if m.mtype == "BlockTrigger" {
 
 					processBlock(m.content)
+					switchFairness();
 				}
 			}
 			i = i + 1
@@ -1366,7 +1418,7 @@ func initWendy() {
 	}
 	i = len(fairnessDef)-1
 	for (i>0){
-		fairnessDef[i] =1
+		fairnessDef[i] =2
 		i--
 	}
 }
