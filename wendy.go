@@ -396,6 +396,18 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 //**
 //*************************************************************************************\
 
+
+	// A transaction tx is blocked (i.e., it is possible for a jet unknown transaction 
+	// to block it) if it's still possible that some transactions can come up with n-t 
+	// votes with a timestamp samller than the smallest of tx.
+	// Thus, we wait for t+1 votes for tx, and take the maximum (we know that the 
+	// smallest honest vote for tx is at least that). Then, is we have t+1 
+	// validators having issued votes with a bigger timestamp, we know that any
+	// unseen transaction has at least one honest timestamp larger than the smallest 
+	// of tx.
+	
+	//Implementation still TODO 
+	
 func isBlocking_timed(s1 string, s2 string, id int) bool {
 	// Blocking function for timed fairness. This means, s1 is blocking s2 if there
 	// exists a time x such that all honest parties saw s1 before x and s2 after x.
