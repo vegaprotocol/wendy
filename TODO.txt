@@ -21,7 +21,8 @@ TODO List
    do with a more clever data structure
  * For now, we only support one fairness definition. The definition is already
    nicely isolated (it only comes in in is_blocked and is_blocking) and
-   switchable on the fly, but others need to be implemented.
+   switchable on the fly, but others need to be implemented. Code for timed
+   fairness is already in, but completely untested.
 Known Issues
 
 Note for a real implementation
