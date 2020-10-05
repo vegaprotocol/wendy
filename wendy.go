@@ -56,6 +56,7 @@ type validatorState struct {
 	Y_Coord        int
 	SequenceNumber int
 	OtherSeqNos    [20]int // Last sequence number seen by others
+	Timestamps	   [20]int // Highest timestamps on votes from others
 	Transactions   []TransactionV
 	LastDoneTX     int // Last Transaction auch that all earlier ones
 	// have finished (needed to clear memory)
@@ -396,7 +397,30 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 //**
 //*************************************************************************************\
 
+func getMaxTime(v[] Vote) int {
+	i:= len(v)
+	max:=0
+	for (i>=0) {
+		if (v[i].ReceivedTime > max) {
+			max = v[i].ReceivedTime
+		}
+		i--;
+	}
+	return max
+}
 
+func getinTime(v[] Vote) int {
+	i:= len(v)
+	min:=0
+	for (i>=0) {
+		if (v[i].ReceivedTime <min) {
+			min= v[i].ReceivedTime
+		}
+		i--;
+	}
+	return min
+}
+func isBlockedT_timed(s string, id int) bool {
 	// A transaction tx is blocked (i.e., it is possible for a jet unknown transaction 
 	// to block it) if it's still possible that some transactions can come up with n-t 
 	// votes with a timestamp samller than the smallest of tx.
@@ -406,8 +430,21 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 	// unseen transaction has at least one honest timestamp larger than the smallest 
 	// of tx.
 	
-	//Implementation still TODO 
-	
+	//Implementation still COMPLETELY UNTESTED!
+	index := idByPayload(s,id)
+	if ((len(vd[id].Transactions[index].Votes)) < t+1) {return true}
+	max:=getMaxTime(vd[id].Transactions[index].Votes);
+
+	i:=1;
+	counter:=0
+	for (i<=n) {
+		if (vd[id].Timestamps[i] > max) {counter++}
+		i++
+	}
+
+	if (counter > t) {return(false)} else {return(true)}
+}
+
 func isBlocking_timed(s1 string, s2 string, id int) bool {
 	// Blocking function for timed fairness. This means, s1 is blocking s2 if there
 	// exists a time x such that all honest parties saw s1 before x and s2 after x.
@@ -997,6 +1034,9 @@ func processMessage(m message, id int) bool {
 
 			TX.Payload = vote.Payload
 			vd[id].OtherSeqNos[m.sender] = vote.SeqNumber
+			if (vd[id].Timestamps[m.sender] > vote.ReceivedTime) {
+				vd[id].Timestamps[m.sender] = vote.ReceivedTime
+			}
 			if !seen(vote.Payload, id) {
 				myVote := Vote{0, vote.Marketid, vote.Payload, worldTime, id}
 				myVote.SeqNumber = vd[id].SequenceNumber
@@ -1277,6 +1317,7 @@ func initWendy() {
 		j := 19
 		for j > 0 {
 			vd[i].OtherSeqNos[j] = -1
+			vd[i].Timestamps[j] = -1
 			j = j - 1
 		}
 		i = i - 1
