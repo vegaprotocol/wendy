@@ -40,26 +40,10 @@ func init() {
 func main() {
 	flag.Parse()
 
-	fmt.Println("Wendy starting")
-	initWendy()
-	r = args.r
-	n = args.n
-	t = args.t
 	if args.n > 19 {
 		fmt.Printf("error: n cannot be > 19\n")
 		os.Exit(1)
 	}
-
-	debugLeader = args.debugLeader
-	delay = args.delay
-	msgDelay = args.msgDelay
-	msgRnd = args.msgRnd
-	blockchainDelay = args.blockchainDelay
-	blockchainRnd = args.blockchainRnd
-	runtime = args.runtime
-	//messagebuffer={};
-	sendMessageWithTime("NIL", "BlockTrigger", 0, 0, worldTime+101)
-	networkNew()
 
 	var (
 		pprof *pprofh
