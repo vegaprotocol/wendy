@@ -397,6 +397,30 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 //**
 //*************************************************************************************\
 
+func isBlocking(s1 string, s2 string, id int) bool {
+	return isBlocking_order(s1,s2,id)
+}
+
+func isBlockedT(s string, id int) bool {
+	return isBlockedT_order(s,id)
+}
+// No fairness Implementation
+// While we have a manual non-fairness-needed option (Market Identifier 0), a more
+// elegant way is to also add it as an option.
+// The disadvantage is that this means validators still cast votes, which in most
+// cases wastes a bit of bandwidth. Also, to be as efficient as we are with MId 0, we'd
+// need to recompute after getting a new transaction as well, which adds a bit
+// to the computational load (though that should be negligible) 
+func isBlockedT_none (s string,id int) bool {
+	return false
+}
+
+func isBlocking_none (s1 string,s2 string,id int) bool {
+	return false
+}
+
+// Timed Fairness Implementation
+
 func getMaxTime(v[] Vote) int {
 	i:= len(v)
 	max:=0
@@ -409,7 +433,7 @@ func getMaxTime(v[] Vote) int {
 	return max
 }
 
-func getinTime(v[] Vote) int {
+func getMinTime(v[] Vote) int {
 	i:= len(v)
 	min:=0
 	for (i>=0) {
@@ -498,6 +522,7 @@ func isBlocked(m message, id int) bool {
 	// This means we cannot process that request yet
 	// So far we only implement the first scheme, where a message is blocked
 	// if it has received less than t+1 votes.
+	// TODO NOT CURRENTLY USED, REPLACED BY isBlockedT
 	currentIndex := idByPayload(m.content, id)
 	if len(vd[id].Transactions[currentIndex].Votes) > t {
 		fmt.Println("Message ", m.content, " is unblocked with ", len(vd[id].Transactions[currentIndex].Votes), "votes.")
@@ -506,7 +531,8 @@ func isBlocked(m message, id int) bool {
 	return true
 
 }
-func isBlockedT(s string, id int) bool {
+
+func isBlockedT_order(s string, id int) bool {
 	// If blocked means that it is possible that a transaction we haven't
 	// even seen yet might require preference over the transaction in m.
 	// This means we cannot process that request yet, or all that need to be
@@ -582,7 +608,7 @@ func seenEarlier(s1 string, s2 string, id1 int, id int) bool {
 	return (false)
 }
 
-func isBlocking(s1 string, s2 string, id int) bool {
+func isBlocking_order(s1 string, s2 string, id int) bool {
 	// If s1 blocking s2 (i.e., it needs to be in the same or an earlier block?
 	//	s1 is blocking s2 if it is possible that all honest parties saw s1
 	//	before s2. Thus, if >=t+1 parties voted s2 before s1, s1 is not blocking s2
