@@ -65,16 +65,14 @@ type validatorState struct {
 	Q         []string      // List of requests ready for the next block
 	D         []string      // List of requests already dealt with
 	U         []string      // List of all known requests not in Q or D
-
+	fairnessDef[20] int // Fairness definition used for different market identifiers. 
+						// Also for now limited to 20 market identifiers	
 }
 
 var worldTime int
 var messageBuffer []message
 var vd [20]validatorState // Max number of validators for now
-var fairnessDef[20] int // Fairness definition used for different market identifiers. 
-						// Also for now limited to 20 market identifiers
-						// TODO: Eventually, this shouldn't be a global variable
-						// anymore, but a local one. 
+				
 // Debugging and controlling
 var n int // The first validator is ID 1, not 0
 var t int
@@ -401,11 +399,21 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 //**
 //*************************************************************************************\
 
-func switchFairness() {
+// Network level function to allow us to trigger the fairness switching in validators.
+// Normally, of course, that would be done by some internal event.
+func switchAllFairness() {
+	i:=len(vd)-1;
+	for (i>-0) {
+		switchFairness(i)
+		i--;
+	}
+}
+
+func switchFairness(id int) {
 // This function demonstrates how the fairness definition can be switched
-// during the life protocol. Usually deactivated to avoid confusion
-// For testing purposes, we assume a static leader (1) and only
-// look at market id 1.
+// during the life protocol; this is the part that is implemented
+// on the validator side. Usually deactivated to avoid confusion
+// For testing purposes, we and only look at market id 1.
 
 // Example: The order fairness definition allows for transaction sequences
 // that would reqire an arbitratily sized block. We test is the number
@@ -413,28 +421,36 @@ func switchFairness() {
 // a definition that can clean up. Once it has done so, we switch back,
 // with some transactions now having moved from U to Q.
 // Note that doint it like this means there's transactions in Q from
-// several different fairness definitions
-  if (len(vd[1].U) > 1000 && fairnessDef[1]==1 ) {
-	fairnessDef[1] = 2;
+// several different fairness definitions 
+if (len(vd[id].U) > 1000 && vd[id].fairnessDef[1]==1 ) {
+	vd[id].fairnessDef[1] = 2;
 	recompute(1)
-	fairnessDef[1] = 1;
+	vd[id].fairnessDef[1] = 1;
 	recompute(1)
   }
 
   // Another example, as above one is likely to never trigger. This just
   // switches after some time.
-  if (worldTime > 4000 && fairnessDef[1]==2) {
-	  fairnessDef[1] = 1
+  if (worldTime > 4000 && vd[id].fairnessDef[1]==2) {
+	  vd[id].fairnessDef[1] = 1
 	  recompute(1)
   }
 }
+
+// The core functions for fairness - isBlocking and isBlocked - now
+// simply forwards to the corresponding function for the 
+// appropriate fairness definition a market wants to use.
+// Fun add-on: It would even be possible to logically combine
+// definitions, i.e., have a market follow two of them at once
+// (combining their individual functions with OR), or follow one
+// of two whichever is easier (dito with AND)
 func isBlocking(s1 string, s2 string, id int) bool {
 	mid1 := vd[id].Transactions[idByPayload(s1,id)].Marketid;
 	mid2 := vd[id].Transactions[idByPayload(s2,id)].Marketid;
 	if (mid1 != mid2) { return false}
-	if (fairnessDef[mid1] == 1) {return isBlocking_order(s1,s2,id)}
-	if (fairnessDef[mid1] == 2) {return isBlocking_timed(s1,s2,id)}
-	if (fairnessDef[mid1] == 3) {return isBlocking_none(s1,s2,id)}
+	if (vd[id].fairnessDef[mid1] == 1) {return isBlocking_order(s1,s2,id)}
+	if (vd[id].fairnessDef[mid1] == 2) {return isBlocking_timed(s1,s2,id)}
+	if (vd[id].fairnessDef[mid1] == 3) {return isBlocking_none(s1,s2,id)}
 	return false
 }
 
@@ -442,9 +458,9 @@ func isBlockedT(s string, id int) bool {
 	mid := vd[id].Transactions[idByPayload(s,id)].Marketid;
 
 
-	if (fairnessDef[mid] == 1) {return isBlockedT_order(s,id)}
-	if (fairnessDef[mid] == 2) {return isBlockedT_timed(s,id)}
-	if (fairnessDef[mid] == 3) {return isBlockedT_none(s,id)}
+	if (vd[id].fairnessDef[mid] == 1) {return isBlockedT_order(s,id)}
+	if (vd[id].fairnessDef[mid] == 2) {return isBlockedT_timed(s,id)}
+	if (vd[id].fairnessDef[mid] == 3) {return isBlockedT_none(s,id)}
 	return false
 }
 // No fairness Implementation
@@ -1403,7 +1419,7 @@ func networkNew() {
 				if m.mtype == "BlockTrigger" {
 
 					processBlock(m.content)
-					switchFairness();
+					switchAllFairness();
 				}
 			}
 			i = i + 1
@@ -1430,13 +1446,14 @@ func initWendy() {
 			vd[i].Timestamps[j] = -1
 			j = j - 1
 		}
+		j = len(vd[i].fairnessDef)-1
+		for (j>0){
+			vd[i].fairnessDef[j] =1
+			j--
+		}
 		i = i - 1
 	}
-	i = len(fairnessDef)-1
-	for (i>0){
-		fairnessDef[i] =1
-		i--
-	}
+	
 }
 
 func endStatus() {
