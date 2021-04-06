@@ -1,29 +1,19 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/viper"
-	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 
+	"code.vegaprotocol.io/wendy/tendermint/app"
 	nm "code.vegaprotocol.io/wendy/tendermint/node"
 )
-
-type App struct {
-	abci.BaseApplication
-}
-
-func (ap *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
-	fmt.Printf("CheckTx(%8s): (%s)\n", req.Type, string(req.Tx))
-	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
-}
 
 func newConfig(root string) *cfg.Config {
 	viper.Set("home", root)
@@ -59,7 +49,7 @@ func main() {
 	filePV := privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 
-	app := &App{}
+	app := app.New()
 
 	node, err := nm.NewNode(
 		config,
@@ -82,5 +72,4 @@ func main() {
 
 	node.Start()
 	node.Wait()
-
 }
