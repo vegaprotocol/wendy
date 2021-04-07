@@ -1,0 +1,45 @@
+{
+  "genesis_time": "2021-03-29T15:24:20.809959396Z",
+  "chain_id": "test-chain-reCTK8",
+  "initial_height": "0",
+  "consensus_params": {
+    "block": {
+      "max_bytes": "22020096",
+      "max_gas": "-1",
+      "time_iota_ms": "1000"
+    },
+    "evidence": {
+      "max_age_num_blocks": "100000",
+      "max_age_duration": "172800000000000",
+      "max_bytes": "1048576"
+    },
+    "validator": {
+      "pub_key_types": [
+        "ed25519"
+      ]
+    },
+    "version": {}
+  },
+  "validators": [
+    {
+      "address": "3AC694379137C3AFB71D372125C2A15E05E50F2C",
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "6BBtu724GD0HLFtMHZ9ahFRK2xAQYBrIWPYiLSQJA5k="
+      },
+      "power": "10",
+      "name": ""
+    },
+    {
+      "address": "89D93488A0E3EAEA3EDF911A85DB7948FADBF168",
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "KVPeSsStUixaa2++9P//hf4f7oj/VKYcuGxor6kLyd0="
+      },
+      "power": "10",
+      "name": ""
+    }
+  ],
+  "app_hash": ""
+}
+
