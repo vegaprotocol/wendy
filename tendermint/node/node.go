@@ -52,6 +52,7 @@ import (
 
 	"code.vegaprotocol.io/wendy/tendermint/mempool"
 	mempl "code.vegaprotocol.io/wendy/tendermint/mempool"
+	"code.vegaprotocol.io/wendy/tendermint/wendy"
 )
 
 //------------------------------------------------------------------------------
@@ -781,6 +782,14 @@ func NewNode(config *cfg.Config,
 		stateSyncReactor, consensusReactor, evidenceReactor, nodeInfo, nodeKey, p2pLogger,
 	)
 
+	// Register Wendy's reactor and set the tx handler on the mempool.
+	wendyR := wendy.NewReactor()
+	sw.AddReactor("WENDY", wendyR)
+	// set OnNewTx with the reactor's handler.
+	// if looks hacky (it probably is) we are using the functional parameter
+	// outside the constructor, but it works.
+	mempl.WithNotify(wendyR.OnNewTx)(mempool)
+
 	err = sw.AddPersistentPeers(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
 	if err != nil {
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
@@ -1276,6 +1285,7 @@ func makeNodeInfo(
 			tmmempl.MempoolChannel,
 			evidence.EvidenceChannel,
 			statesync.SnapshotChannel, statesync.ChunkChannel,
+			wendy.WendyChannel,
 		},
 		Moniker: config.Moniker,
 		Other: p2p.DefaultNodeInfoOther{

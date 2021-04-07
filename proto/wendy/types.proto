@@ -1,10 +1,12 @@
 syntax = "proto3";
 package wendy;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "code.vegaprotocol.io/wendy/proto/wendy";
 
 message Vote {
-  int32 sequence = 1;
+  uint64 sequence = 1;
   bytes tx_hash = 2;
-  int64 seen = 3;
+  google.protobuf.Timestamp seen = 3;
 }

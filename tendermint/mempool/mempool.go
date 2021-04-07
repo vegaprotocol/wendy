@@ -50,6 +50,7 @@ type Mempool struct {
 	updateMtx tmsync.RWMutex
 	preCheck  tmmempl.PreCheckFunc
 	postCheck tmmempl.PostCheckFunc
+	notify    NotifyFunc
 
 	wal          *auto.AutoFile // a log of mempool txs
 	txs          *clist.CList   // concurrent linked-list of good txs
@@ -135,6 +136,14 @@ func WithPostCheck(f tmmempl.PostCheckFunc) CListMempoolOption {
 // WithMetrics sets the metrics.
 func WithMetrics(metrics *tmmempl.Metrics) CListMempoolOption {
 	return func(mem *Mempool) { mem.metrics = metrics }
+}
+
+type NotifyFunc func(tx types.Tx)
+
+// WithNotify sets a notification for the mempool. This is ran after a tx has
+// been accepted by the mempool.
+func WithNotify(f NotifyFunc) CListMempoolOption {
+	return func(mem *Mempool) { mem.notify = f }
 }
 
 func (mem *Mempool) InitWAL() error {
@@ -412,6 +421,14 @@ func (mem *Mempool) resCbFirstTime(
 			postCheckErr = mem.postCheck(tx, r.CheckTx)
 		}
 		if (r.CheckTx.Code == abci.CodeTypeOK) && postCheckErr == nil {
+
+			// Notify when a tx has passed all checks
+			fmt.Printf("notifying new tx")
+			fmt.Printf("mem.notify = %+v\n", mem.notify)
+			if mem.notify != nil {
+				mem.notify(tx)
+			}
+
 			// Check mempool isn't full again to reduce the chance of exceeding the
 			// limits.
 			if err := mem.isFull(len(tx)); err != nil {
