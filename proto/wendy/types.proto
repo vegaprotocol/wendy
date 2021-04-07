@@ -1,0 +1,10 @@
+syntax = "proto3";
+package wendy;
+
+option go_package = "code.vegaprotocol.io/wendy/proto/wendy";
+
+message Vote {
+  int32 sequence = 1;
+  bytes tx_hash = 2;
+  int64 seen = 3;
+}
