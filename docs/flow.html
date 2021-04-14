@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body>
+	<script src="//d3js.org/d3.v4.min.js"></script>
+	<script src="https://unpkg.com/@hpcc-js/wasm@0.3.11/dist/index.min.js"></script>
+	<script src="https://unpkg.com/d3-graphviz@3.0.5/build/d3-graphviz.js"></script>
+	<div id="buttons" style="text-align: center;">
+		<button type="button" onclick="prev()"> < </button>
+		<button type="button" onclick="next()"> > </button>
+	</div>
+	<div id="graph" style="text-align: center;"></div>
+	<script>
+		function transitionFactory() {
+			return d3.transition("main")
+				.ease(d3.easeLinear)
+				.delay(40)
+				.duration(300 * dotIndex);
+		}
+
+		var dotIndex = 0;
+		var graphviz = d3.select("#graph").graphviz()
+			.logEvents(true)
+			.transition(transitionFactory)
+			.on("initEnd", render);
+
+		function render() {
+			var dotLines = dots[dotIndex % dots.length];
+			var dot = dotLines.join('');
+			graphviz
+				.width(1000)
+				.height(1000)
+				.renderDot(dot);
+		}
+
+		function next() {
+			if (dotIndex == dots.length - 1) {
+				dotIndex = 0;
+			} else {
+				dotIndex += 1;
+			}
+			if (dotIndex != dots.length) {
+				render();
+			}
+		}
+		function prev() {
+			if (dotIndex == 0) {
+				dotIndex = dots.length - 1;
+			} else {
+				dotIndex -= 1;
+			}
+			if (dotIndex != dots.length) {
+				render();
+			}
+		}
+
+		var dots = [
+			[
+				'digraph {',
+				'Wendy [label="Wendy flow", shape=plain, style=""];',
+				'  node [shape = circle];',
+
+				'  N1 -> N2 [dir=none]',
+				'  N1 -> N3 [dir=none]',
+				'  N2 -> N3 [dir=none]',
+				'  N3 -> N4 [dir=none]',
+				'  N3 -> N5 [dir=none]',
+				'}'
+			],
+			[
+				'digraph {',
+				'Wendy [label="\'N1\' gets a transaction\n from some client.", shape=plain, style=""];',
+				'  node [shape = circle];',
+
+				'  N1 [color=blue]',
+
+				'  N1 -> N2 [dir=none]',
+				'  N1 -> N3 [dir=none]',
+				'  N2 -> N3 [dir=none]',
+				'  N3 -> N4 [dir=none]',
+				'  N3 -> N5 [dir=none]',
+				'}'
+			],
+			[
+				'digraph {',
+				'Wendy [label="\'N1\' broadcasts the tx\nto one of their peer,\nin this case N2.", shape=plain, style=""];',
+				'  node [shape = circle];',
+
+				'  N1 [color=red]',
+
+				'  N1 -> N2 [label="tx(1)"]',
+				'  N1 -> N3 [dir=none]',
+				'  N2 -> N3 [dir=none]',
+				'  N3 -> N4 [dir=none]',
+				'  N3 -> N5 [dir=none]',
+				'}'
+			],
+			[
+				'digraph {',
+				'Wendy [label="\'N1\' votes on the tx\n by broadcasting\nvotes to every peer.\n\n\'N2\' received the Tx.", shape=plain, style=""];',
+				'  node [shape = circle];',
+
+				'  N1 [color=red]',
+				'  N2 [color=blue]',
+
+				'  N1 -> N2 [label="vote(1)"]',
+				'  N1 -> N3 [label="vote(1)"]',
+				'  N2 -> N3 [label="tx(1)"]',
+				'  N3 -> N4 [dir=none]',
+				'  N3 -> N5 [dir=none]',
+				'}'
+			],
+			[
+				'digraph {',
+				'Wendy [label="\'N3\' got the Tx as well as \nthe votes from \'N1\' and \'N2\'\nreceived the Tx.\n\n\'N3\' relay the Tx\nto one of their peers.", shape=plain, style=""];',
+				'  node [shape = circle];',
+
+				'  N1 [color=red]',
+				'  N2 [color=red]',
+				'  N3 [color=red]',
+
+				'  N1 -> N2 [dir=none]',
+				'  N1 -> N3 [dir=none]',
+				'  N2 -> N3 [label="vote(1,2)"]',
+				'  N3 -> N4 [dir=none]',
+				'  N3 -> N5 [label="tx(1)"]',
+				'}'
+			],
+			[
+				'digraph {',
+				'Wendy [label="\'N3\' votes for the tx\nand relay other\'s vote.", shape=plain, style=""];',
+				'  node [shape = circle];',
+
+				'  N1 [color=red]',
+				'  N2 [color=red]',
+				'  N3 [color=red]',
+				'  N5 [color=blue]',
+
+				'  N1 -> N2 [dir=none]',
+				'  N3 -> N1 [label="vote(2,3)"]',
+				'  N2 -> N3 [dir=none]',
+				'  N3 -> N4 [label="vote(1,2,3)"]',
+				'  N3 -> N5 [label="vote(1,2,3)"]',
+				'}'
+			],
+			[
+				'digraph {',
+				'Wendy [label="\'N4\' could not get tx but got the votes. (?)", shape=plain, style=""];',
+				'  node [shape = circle];',
+
+				'  N1 [color=red]',
+				'  N2 [color=red]',
+				'  N3 [color=red]',
+				'  N4 [color=yellow]',
+				'  N5 [color=red]',
+
+				'  N1 -> N2 [dir=none]',
+				'  N3 -> N1 [dir=none]',
+				'  N2 -> N3 [dir=none]',
+				'  N3 -> N4 [dir=none]',
+				'  N3 -> N5 [dir=none]',
+				'}'
+			],
+		];
+	</script>
