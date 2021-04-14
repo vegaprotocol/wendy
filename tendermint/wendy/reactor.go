@@ -1,8 +1,10 @@
 package wendy
 
 import (
-	"log"
+	"sync/atomic"
 
+	"github.com/tendermint/tendermint/libs/clist"
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/conn"
 	"github.com/tendermint/tendermint/types"
@@ -16,14 +18,27 @@ const (
 
 type Reactor struct {
 	p2p.BaseReactor
+
+	id     string
+	logger log.Logger
+
 	txChan chan (types.Tx)
+	seq    uint64
+	votes  *clist.CList
 }
 
-func NewReactor() *Reactor {
+func NewReactor(id p2p.ID) *Reactor {
 	r := &Reactor{
+		id:     string(id),
+		logger: log.NewNopLogger(),
 		txChan: make(chan types.Tx),
 	}
 	r.BaseReactor = *p2p.NewBaseReactor("Wendy", r)
+	return r
+}
+
+func (r *Reactor) WithLogger(logger log.Logger) *Reactor {
+	r.logger = logger.With("module", "wendy")
 	return r
 }
 
@@ -34,6 +49,23 @@ func (r *Reactor) OnNewTx(tx types.Tx) {
 	go func() { r.txChan <- tx }()
 }
 
+// nextSeq returns the next sequence number.
+// This function is safe for concurrent access.
+func (r *Reactor) nextSeq() uint64 {
+	// atomic.AddUint64 returns the new value
+	return atomic.AddUint64(&r.seq, 1)
+}
+
+func (r *Reactor) logVote(msg string, vote *protowendy.Vote, peer p2p.Peer) {
+	r.logger.Debug(msg, "sender", vote.Sender[0:4], "peer", peer.ID()[0:4], "seq", vote.Sequence, "hash", vote.TxHash)
+}
+
+// newVote returns a new vote given a tx. It will generate other fields based
+// on the internal state.
+func (r *Reactor) newVote(tx types.Tx) *protowendy.Vote {
+	return protowendy.NewVote(r.id, r.nextSeq(), tx.Hash())
+}
+
 func (r *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 	for {
 		if !peer.IsRunning() {
@@ -42,11 +74,10 @@ func (r *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 
 		select {
 		case tx := <-r.txChan:
-			seq := uint64(0)
-			vote := protowendy.NewVote(seq, tx.Hash())
+			vote := r.newVote(tx)
 			bz := protowendy.MustMarshal(vote)
 			peer.Send(WendyChannel, bz)
-			log.Printf("Sent vote: %s", vote)
+			r.logVote("Vote sent", vote, peer)
 		}
 	}
 }
@@ -58,7 +89,7 @@ func (r *Reactor) AddPeer(peer p2p.Peer) {
 func (r *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 	vote := &protowendy.Vote{}
 	protowendy.MustUnmarshal(msgBytes, vote)
-	log.Printf("got vote: %s", vote)
+	r.logVote("Vote received", vote, peer)
 }
 
 func (r *Reactor) InitPeer(peer p2p.Peer) p2p.Peer {

@@ -783,7 +783,7 @@ func NewNode(config *cfg.Config,
 	)
 
 	// Register Wendy's reactor and set the tx handler on the mempool.
-	wendyR := wendy.NewReactor()
+	wendyR := wendy.NewReactor(nodeInfo.ID()).WithLogger(logger)
 	sw.AddReactor("WENDY", wendyR)
 	// set OnNewTx with the reactor's handler.
 	// if looks hacky (it probably is) we are using the functional parameter

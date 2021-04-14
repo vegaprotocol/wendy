@@ -6,7 +6,8 @@ import "google/protobuf/timestamp.proto";
 option go_package = "code.vegaprotocol.io/wendy/proto/wendy";
 
 message Vote {
-  uint64 sequence = 1;
-  bytes tx_hash = 2;
-  google.protobuf.Timestamp seen = 3;
+  string sender = 1;
+  uint64 sequence = 2;
+  bytes tx_hash = 3;
+  google.protobuf.Timestamp seen = 4;
 }

@@ -8,7 +8,9 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
-	github.com/tendermint/tendermint v0.34.9-0.20210329135757-6c0c27320c59
+	github.com/tendermint/tendermint v0.34.10-0.20210412090926-03393fb6ec80
 	github.com/tendermint/tm-db v0.6.4
 	google.golang.org/protobuf v1.25.0
 )
+
+replace github.com/tendermint/tendermint => /home/gchain/gohack/github.com/tendermint/tendermint

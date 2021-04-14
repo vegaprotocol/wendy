@@ -1,13 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/viper"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/p2p/conn"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 
@@ -60,11 +63,15 @@ func main() {
 		nm.DefaultDBProvider,
 		nm.DefaultMetricsProvider(config.Instrumentation),
 		log.NewFilter(logger,
+			log.AllowDebugWith("module", "p2p"),
 			log.AllowInfoWith("module", "app"),
 			log.AllowInfoWith("module", "main"),
 			log.AllowInfoWith("module", "state"),
 			log.AllowError(),
 		),
+		nm.CustomReactors(map[string]p2p.Reactor{
+			"TESTING": newReactor(),
+		}),
 	)
 	if err != nil {
 		panic(err)
@@ -72,4 +79,34 @@ func main() {
 
 	node.Start()
 	node.Wait()
+}
+
+type reactor struct {
+	p2p.BaseReactor
+}
+
+func newReactor() *reactor {
+	r := &reactor{}
+	r.BaseReactor = *p2p.NewBaseReactor("TESTING", r)
+	return r
+}
+
+func (*reactor) GetChannels() []*conn.ChannelDescriptor {
+	return []*conn.ChannelDescriptor{
+		{ID: 0x98, Priority: 4},
+	}
+}
+
+func (*reactor) AddPeer(peer p2p.Peer) {
+	go func() {
+		for {
+			time.Sleep(1 * time.Second)
+			fmt.Printf("SENDING DATA\n")
+			peer.Send(0x98, []byte("HELLO, WORLD!"))
+		}
+	}()
+}
+
+func (*reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
+	fmt.Printf("!!!!!!!!RECV DATA@%X: %s\n", chID, msgBytes)
 }

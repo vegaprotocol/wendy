@@ -423,8 +423,6 @@ func (mem *Mempool) resCbFirstTime(
 		if (r.CheckTx.Code == abci.CodeTypeOK) && postCheckErr == nil {
 
 			// Notify when a tx has passed all checks
-			fmt.Printf("notifying new tx")
-			fmt.Printf("mem.notify = %+v\n", mem.notify)
 			if mem.notify != nil {
 				mem.notify(tx)
 			}
