@@ -1,6 +1,6 @@
 <img width="654" alt="w" src="https://user-images.githubusercontent.com/13255539/94933906-ee1d5b80-04c2-11eb-96f1-f65cde7ce83f.png">
 
-![](https://github.com/vegaprotocol/actions/workflows/test.yml/badge.svg)
+![](https://github.com/vegaprotocol/wendy/actions/workflows/test.yml/badge.svg)
 
 The good little fairness widget
 
