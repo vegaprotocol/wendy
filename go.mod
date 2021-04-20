@@ -12,5 +12,3 @@ require (
 	github.com/tendermint/tm-db v0.6.4
 	google.golang.org/protobuf v1.25.0
 )
-
-replace github.com/tendermint/tendermint => /home/gchain/gohack/github.com/tendermint/tendermint
