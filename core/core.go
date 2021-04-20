@@ -7,11 +7,16 @@ import (
 )
 
 const (
-	HashLen = 4
-	Quorum  = 2 / 3
+	HashLen = 32
+)
+
+var (
+	Quorum = float64(2) / 3
 )
 
 type Hash [HashLen]byte
+
+func (h Hash) String() string { return string(h[:]) }
 
 type ID string
 
@@ -29,8 +34,13 @@ type Vote struct {
 	// TODO: signature
 }
 
+func newVote(seq uint64, tx Tx) *Vote {
+	return &Vote{Seq: seq, TxHash: tx.Hash(), Time: time.Now()}
+}
+
 type Wendy struct {
 	validators []Validator
+	quorum     int // quorum gets updated every time the validator set is updated.
 
 	txsMtx sync.RWMutex
 	txs    map[Hash]Tx
@@ -50,16 +60,32 @@ func New() *Wendy {
 
 // UpdateValidatorSet updates the list of validators in the consensus.
 // Updating the validator set might affect the return value of Quorum().
+// Upon updating the senders that are not in the new validator set are removed.
 func (w *Wendy) UpdateValidatorSet(vs []Validator) {
 	w.validators = vs
+
+	q := math.Floor(
+		float64(len(vs))*Quorum,
+	) + 1
+
+	w.quorum = int(q)
+
+	senders := make(map[ID]*Sender)
+	// keep all the senders we already have and create new one if not present
+	// those old senders that are not part of the new set will be discarded.
+	for _, v := range vs {
+		key := ID(v)
+		if s, ok := w.senders[key]; ok {
+			senders[key] = s
+		} else {
+			senders[key] = NewSender(key)
+		}
+	}
+	w.senders = senders
 }
 
-// Quorum returns the required number of validators to achieve Quorum.
 func (w *Wendy) Quorum() int {
-	q := math.Ceil(
-		float64(len(w.validators)) * Quorum,
-	)
-	return int(q)
+	return w.quorum
 }
 
 // AddTx adds a tx to the list of tx to be mined.
@@ -105,6 +131,39 @@ func (w *Wendy) VoteByTxHash(hash Hash) *Vote {
 	return w.votes[hash]
 }
 
-func (w *Wendy) checkForQuorum() {
+// hasQuorum evaluates fn for every register sender.
+// It returns true if fn returned true at least w.quorum times.
+func (w *Wendy) hasQuorum(fn func(s *Sender) bool) bool {
+	var votes int
+	for _, s := range w.senders {
+		if ok := fn(s); ok {
+			votes++
+			if votes == w.quorum {
+				return true
+			}
+		}
 
+	}
+	return false
+}
+
+// IsBlockedBy determines if tx2 might have priority over tx1.
+// We say that tx1 is NOT bloked by tx2 if there are t+1 votes reporting tx1
+// before tx2.
+func (w *Wendy) IsBlockedBy(tx1, tx2 Tx) bool {
+	// tx1 is BlockedBy tx2 if we couldn't find agreement that tx1 is before
+	// tx2
+	return !w.hasQuorum(func(s *Sender) bool {
+		return s.Before(tx1, tx2)
+	})
+}
+
+// IsBlocked identifies if it is pssible that a so-far-unknown transaction
+// might be scheduled with priority to tx.
+func (w *Wendy) IsBlocked(tx Tx) bool {
+	// tx is Blocked if there if we couldn't find agreement that tx has been
+	// seen.
+	return !w.hasQuorum(func(s *Sender) bool {
+		return s.Seen(tx)
+	})
 }

@@ -2,12 +2,16 @@ package core
 
 import (
 	"container/list"
+	"math"
 )
 
 type Sender struct {
 	id      ID
 	votes   *list.List
 	pending *list.List
+
+	// NOTE: Use a LRU?
+	seen map[Hash]struct{}
 }
 
 func NewSender(id ID) *Sender {
@@ -15,6 +19,7 @@ func NewSender(id ID) *Sender {
 		id:      id,
 		votes:   list.New(),
 		pending: list.New(),
+		seen:    make(map[Hash]struct{}),
 	}
 }
 
@@ -34,6 +39,8 @@ func (s *Sender) NextSeq() uint64 {
 // Everytime a vote is added the pending list if checked to see if we can add
 // them too.
 func (s *Sender) AddVote(v *Vote) {
+	s.seen[v.TxHash] = struct{}{}
+
 	nextSeq := s.NextSeq()
 
 	// vote already inserted, ignore.
@@ -82,4 +89,34 @@ func (s *Sender) AddVote(v *Vote) {
 			break
 		}
 	}
+}
+
+// Before returns true if tx1 has a lower sequence number than tx2.
+// If tx1 and/or tx2 are not seen, Before returns false.
+func (s *Sender) Before(tx1, tx2 Tx) bool {
+	var (
+		// we assume false (see `seq1 < seq2` below) until proven otherwise.
+		seq1 uint64 = math.MaxUint64
+		seq2 uint64
+	)
+	h1, h2 := tx1.Hash(), tx2.Hash()
+
+	for e := s.votes.Front(); e != nil; e = e.Next() {
+		v := e.Value.(*Vote)
+		if v.TxHash == h1 {
+			seq1 = v.Seq
+		} else if v.TxHash == h2 {
+			seq2 = v.Seq
+		}
+
+		if seq1 < seq2 {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Sender) Seen(tx Tx) bool {
+	_, ok := s.seen[tx.Hash()]
+	return ok
 }
