@@ -132,8 +132,12 @@ func (w *Wendy) VoteByTxHash(hash Hash) *Vote {
 }
 
 // hasQuorum evaluates fn for every register sender.
-// It returns true if fn returned true at least w.quorum times.
+// It returns true if fn returned true at least w.Quorum() times.
+// NOTE: This function is safe for concurrent access.
 func (w *Wendy) hasQuorum(fn func(s *Sender) bool) bool {
+	w.votesMtx.RLock()
+	defer w.votesMtx.RUnlock()
+
 	var votes int
 	for _, s := range w.senders {
 		if ok := fn(s); ok {
@@ -142,7 +146,6 @@ func (w *Wendy) hasQuorum(fn func(s *Sender) bool) bool {
 				return true
 			}
 		}
-
 	}
 	return false
 }
@@ -151,8 +154,7 @@ func (w *Wendy) hasQuorum(fn func(s *Sender) bool) bool {
 // We say that tx1 is NOT bloked by tx2 if there are t+1 votes reporting tx1
 // before tx2.
 func (w *Wendy) IsBlockedBy(tx1, tx2 Tx) bool {
-	// tx1 is BlockedBy tx2 if we couldn't find agreement that tx1 is before
-	// tx2
+	// if there's no quorum that tx1 is before tx2, then tx1 is Blocked by tx2
 	return !w.hasQuorum(func(s *Sender) bool {
 		return s.Before(tx1, tx2)
 	})
@@ -161,8 +163,7 @@ func (w *Wendy) IsBlockedBy(tx1, tx2 Tx) bool {
 // IsBlocked identifies if it is pssible that a so-far-unknown transaction
 // might be scheduled with priority to tx.
 func (w *Wendy) IsBlocked(tx Tx) bool {
-	// tx is Blocked if there if we couldn't find agreement that tx has been
-	// seen.
+	// if there's no quorum that tx has been seen, then IsBlocked
 	return !w.hasQuorum(func(s *Sender) bool {
 		return s.Seen(tx)
 	})
