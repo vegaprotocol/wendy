@@ -1,5 +1,7 @@
 <img width="654" alt="w" src="https://user-images.githubusercontent.com/13255539/94933906-ee1d5b80-04c2-11eb-96f1-f65cde7ce83f.png">
 
+![](https://github.com/vegaprotocol/actions/workflows/test.yml/badge.svg)
+
 The good little fairness widget
 
 Wendy acts as an additional widget for an existing blockchain, and is largely agnostic to the underlying blockchain and its security assumptions. Furthermore, it is possible to apply it to the protocol only for a subset of the transactions, and thus run several independent fair markets on the same chain. We have implemented Wendy to run on a simulator to get first performance estimates. As Wendy runs parallel to the actual blockchain, the core impact it has (apart from adding some network traffic) is that some transactions are put into a later block than they would be without fairness.
