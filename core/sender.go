@@ -38,14 +38,14 @@ func (s *Sender) NextSeq() uint64 {
 // If the vote's Seq is gapped it's added to the pending list.
 // Everytime a vote is added the pending list if checked to see if we can add
 // them too.
-func (s *Sender) AddVote(v *Vote) {
+func (s *Sender) AddVote(v *Vote) bool {
 	s.seen[v.TxHash] = struct{}{}
 
 	nextSeq := s.NextSeq()
 
 	// vote already inserted, ignore.
 	if v.Seq < nextSeq {
-		return
+		return false
 	}
 
 	// there is a gap between nextSeq and the vote, so we need to add it to the
@@ -55,18 +55,18 @@ func (s *Sender) AddVote(v *Vote) {
 			seq := e.Value.(*Vote).Seq
 			// already inserted, ignore.
 			if seq == v.Seq {
-				return
+				return false
 			}
 
 			// insert right before the next vote with higher seq number.
 			if seq > v.Seq {
 				s.pending.InsertBefore(v, e)
-				return
+				return true
 			}
 		}
 		// list was empty
 		s.pending.PushBack(v)
-		return
+		return true
 	}
 
 	// vote has the expected seq number.
@@ -89,6 +89,8 @@ func (s *Sender) AddVote(v *Vote) {
 			break
 		}
 	}
+
+	return true
 }
 
 // Before returns true if tx1 has a lower sequence number than tx2.

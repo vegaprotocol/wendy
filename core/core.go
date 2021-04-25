@@ -3,40 +3,7 @@ package core
 import (
 	"math"
 	"sync"
-	"time"
 )
-
-const (
-	HashLen = 32
-)
-
-var (
-	Quorum = float64(2) / 3
-)
-
-type Hash [HashLen]byte
-
-func (h Hash) String() string { return string(h[:]) }
-
-type ID string
-
-type Tx interface {
-	Bytes() []byte
-	Hash() Hash
-}
-
-type Validator string
-
-type Vote struct {
-	Seq    uint64
-	TxHash Hash
-	Time   time.Time
-	// TODO: signature
-}
-
-func newVote(seq uint64, tx Tx) *Vote {
-	return &Vote{Seq: seq, TxHash: tx.Hash(), Time: time.Now()}
-}
 
 type Wendy struct {
 	validators []Validator
@@ -67,9 +34,10 @@ func (w *Wendy) UpdateValidatorSet(vs []Validator) {
 	q := math.Floor(
 		float64(len(vs))*Quorum,
 	) + 1
-
 	w.quorum = int(q)
 
+	w.votesMtx.Lock()
+	defer w.votesMtx.Unlock()
 	senders := make(map[ID]*Sender)
 	// keep all the senders we already have and create new one if not present
 	// those old senders that are not part of the new set will be discarded.
@@ -84,6 +52,7 @@ func (w *Wendy) UpdateValidatorSet(vs []Validator) {
 	w.senders = senders
 }
 
+// Quorum returns the required number of votes to achieve consensus.
 func (w *Wendy) Quorum() int {
 	return w.quorum
 }
@@ -105,8 +74,9 @@ func (w *Wendy) AddTx(tx Tx) bool {
 
 // AddVote adds a vote to the list of votes.
 // Votes are positioned given it's sequence number.
+// AddVote returns alse if the vote was already added.
 // NOTE: This function is safe for concurrent access.
-func (w *Wendy) AddVote(senderID ID, v *Vote) {
+func (w *Wendy) AddVote(senderID ID, v *Vote) bool {
 	w.votesMtx.Lock()
 	defer w.votesMtx.Unlock()
 
@@ -116,10 +86,11 @@ func (w *Wendy) AddVote(senderID ID, v *Vote) {
 		sender = NewSender(senderID)
 		w.senders[senderID] = sender
 	}
-	sender.AddVote(v)
 
 	// Register the vote based on its tx.Hash
 	w.votes[v.TxHash] = v
+
+	return sender.AddVote(v)
 }
 
 // VoteByTxHash returns a vote given its tx.Hash

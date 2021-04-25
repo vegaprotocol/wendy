@@ -33,6 +33,22 @@ func TestSendersVoting(t *testing.T) {
 	assert.EqualValues(t, 7, s.NextSeq(), "Gappend vote should consume pending vote")
 }
 
+func TestSendersVotingCache(t *testing.T) {
+	s := NewSender("xxx")
+
+	assert.True(t, s.AddVote(&Vote{Seq: 0}))
+	assert.False(t, s.AddVote(&Vote{Seq: 0}))
+
+	assert.True(t, s.AddVote(&Vote{Seq: 1}))
+	assert.False(t, s.AddVote(&Vote{Seq: 1}))
+
+	assert.True(t, s.AddVote(&Vote{Seq: 3}))
+	assert.False(t, s.AddVote(&Vote{Seq: 3}))
+
+	assert.True(t, s.AddVote(&Vote{Seq: 5}))
+	assert.True(t, s.AddVote(&Vote{Seq: 4}))
+}
+
 func TestSenderBeforeTx1Tx2(t *testing.T) {
 	var (
 		tx0 = newTestTxStr("tx0", "h0")

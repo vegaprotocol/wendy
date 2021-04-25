@@ -1,15 +1,22 @@
 package core
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+var _ Tx = &testTx{}
+
 type testTx struct {
 	bytes []byte
 	hash  []byte
+}
+
+func newTestTxStr(bytes, hash string) *testTx {
+	return &testTx{bytes: []byte(bytes), hash: []byte(hash)}
 }
 
 func (tx *testTx) Bytes() []byte { return tx.bytes }
@@ -19,8 +26,8 @@ func (tx *testTx) Hash() Hash {
 	return hash
 }
 
-func newTestTxStr(bytes, hash string) *testTx {
-	return &testTx{bytes: []byte(bytes), hash: []byte(hash)}
+func (tx *testTx) String() string {
+	return fmt.Sprintf("%s (hash:%s)", string(tx.bytes), string(tx.hash))
 }
 
 func TestSequenceConsensus(t *testing.T) {
