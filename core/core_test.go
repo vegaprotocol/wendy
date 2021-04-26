@@ -75,7 +75,7 @@ func TestIsBlockedBy(t *testing.T) {
 	w.UpdateValidatorSet([]Validator{
 		"s0", "s1", "s2", "s3",
 	})
-	require.NotZero(t, w.Quorum(), "can't run IsBlockedBy when Quorum is zero")
+	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
 	tx0, tx1 :=
 		newTestTxStr("tx0", "h0"),
@@ -84,19 +84,19 @@ func TestIsBlockedBy(t *testing.T) {
 	t.Run("1of4", func(t *testing.T) {
 		w.AddVote(newVote("s0", 0, tx0))
 		w.AddVote(newVote("s0", 1, tx1))
-		assert.True(t, w.IsBlockedBy(tx0, tx1), "should be blocked for Quorum %d", w.Quorum())
+		assert.True(t, w.IsBlockedBy(tx0, tx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("2of4", func(t *testing.T) {
 		w.AddVote(newVote("s1", 0, tx0))
 		w.AddVote(newVote("s1", 1, tx1))
-		assert.True(t, w.IsBlockedBy(tx0, tx1), "should be blocked for Quorum %d", w.Quorum())
+		assert.True(t, w.IsBlockedBy(tx0, tx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("3of4", func(t *testing.T) {
 		w.AddVote(newVote("s2", 0, tx0))
 		w.AddVote(newVote("s2", 1, tx1))
-		assert.False(t, w.IsBlockedBy(tx0, tx1), "should NOT be blocked for Quorum %d", w.Quorum())
+		assert.False(t, w.IsBlockedBy(tx0, tx1), "should NOT be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("4of4", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestIsBlocked(t *testing.T) {
 	w.UpdateValidatorSet([]Validator{
 		"s0", "s1", "s2", "s3",
 	})
-	require.NotZero(t, w.Quorum(), "can't run IsBlockedBy when Quorum is zero")
+	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
 	tx0 := newTestTxStr("tx0", "h0")
 

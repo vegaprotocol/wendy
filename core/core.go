@@ -52,9 +52,18 @@ func (w *Wendy) UpdateValidatorSet(vs []Validator) {
 	w.senders = senders
 }
 
-// Quorum returns the required number of votes to achieve consensus.
-func (w *Wendy) Quorum() int {
+// HonestParties returns the required number of votes to be sure that at least
+// one vote came from a honest validator.
+// t + 1
+func (w *Wendy) HonestParties() int {
 	return w.quorum
+}
+
+// HonestMajority returns the minimum number of votes required to assure that I
+// have a honest majority (2t + 1, which is equivalent to n-t). It's also the maximum number of honest parties I can
+// expect to have.
+func (w *Wendy) HonestMajority() int {
+	return len(w.validators) - w.quorum
 }
 
 // AddTx adds a tx to the list of tx to be mined.

@@ -24,7 +24,7 @@ func (nt *nodeTx) String() string {
 	return fmt.Sprintf("from=%s, tx=(%s)", nt.from, nt.tx)
 }
 
-type debugFn func(*Node) bool
+type debugFn func(*Node, string) bool
 
 type Node struct {
 	wendy *Wendy
@@ -33,7 +33,7 @@ type Node struct {
 
 	seq uint64
 
-	debug func(n *Node) bool
+	debug debugFn
 	cheat bool
 }
 
@@ -82,8 +82,9 @@ func (n *Node) AddTx(tx Tx) {
 }
 
 func (n *Node) log(msg string, args ...interface{}) {
-	if n.debug(n) {
-		fmt.Printf("[%s] %s\n", n.name, fmt.Sprintf(msg, args...))
+	line := fmt.Sprintf("[%s] %s\n", n.name, fmt.Sprintf(msg, args...))
+	if n.debug(n, line) {
+		fmt.Printf(line)
 	}
 }
 
