@@ -6,8 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var debug = func(n *Node) bool {
-	return n.name == "n4" || n.name == "n5"
+var debug = func(n *Node, msg string) bool {
+	return !true
+	// return strings.Contains(msg, "n1")
+	// return n.name == "n4" || n.name == "n5"
 }
 
 type Network struct {
@@ -55,33 +57,62 @@ func (net *Network) Node(id ID) *Node {
 	return net.nodes[id]
 }
 
-func TestSimulation(t *testing.T) {
-	/*
-		Topology:
-		           ┌────┐
-		           │ n1 │ ─┐
-		           └────┘  │
-		             │     │
-		           ┌────┐  │
-		           │ n2 │  │
-		           └────┘  │
-		             │     │
-		 ┌────┐    ┌────┐  │
-		 │ n5 │ ── │ n3 │ ─┘
-		 └────┘    └────┘
-		             │
-		           ┌────┐
-		           │ n4 │
-		           └────┘
-	*/
-	net := NewNetwork(map[ID][]ID{
+type topology map[ID][]ID
+
+var topologies = map[string]topology{
+	"FullyConnected": {
+		/*
+					 ┌────┐
+			   ┌─────┤ n1 ├─────┐
+			   │     └──┬─┘     │
+			┌──┴─┐      │      ┌┴───┐
+			│ n4 ├──────┼──────┤ n2 │
+			└──┬─┘      │      └┬───┘
+			   │     ┌──┴─┐     │
+			   └─────┤ n3 ├─────┘
+					 └────┘
+		*/
+		"n1": {"n2", "n3", "n4"},
+		"n2": {"n1", "n3", "n4"},
+		"n3": {"n1", "n2", "n4"},
+		"n4": {"n1", "n2", "n3"},
+	},
+	"Complex": {
+		/*
+		   		   ┌────┐
+		   		   │ n1 ├──┐
+		   		   └─┬──┘  │
+		   			 │     │
+		   		   ┌─┴──┐  │
+		   		   │ n2 │  │
+		   		   └─┬──┘  │
+		   			 │     │
+		 ┌────┐    ┌─┴──┐  │
+		 │ n5 ├────┤ n3 ├──┘
+		 └────┘    └─┬──┘
+		   			 │
+		   		   ┌─┴──┐
+		   		   │ n4 │
+		   		   └────┘
+		*/
 		"n1": {"n2", "n3"},
 		"n2": {"n1", "n3"},
 		"n3": {"n1", "n2", "n4", "n5"},
 		"n4": {"n3"},
 		"n5": {"n3"},
-	})
+	},
+}
 
+func TestSimulation(t *testing.T) {
+	for name, topology := range topologies {
+		t.Run(name, func(t *testing.T) {
+			net := NewNetwork(topology)
+			testSimulation(t, net)
+		})
+	}
+}
+
+func testSimulation(t *testing.T, net *Network) {
 	tx0 := newTestTxStr("tx0", "hash0")
 	assert.True(t, net.Node("n1").wendy.IsBlocked(tx0), "n1")
 
