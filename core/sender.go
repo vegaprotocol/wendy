@@ -39,8 +39,6 @@ func (s *Sender) NextSeq() uint64 {
 // Everytime a vote is added the pending list if checked to see if we can add
 // them too.
 func (s *Sender) AddVote(v *Vote) bool {
-	s.seen[v.TxHash] = struct{}{}
-
 	nextSeq := s.NextSeq()
 
 	// vote already inserted, ignore.
@@ -71,6 +69,9 @@ func (s *Sender) AddVote(v *Vote) bool {
 
 	// vote has the expected seq number.
 	s.votes.PushBack(v)
+
+	// we consider a vote `seen` only when its seq number is last+1.
+	s.seen[v.TxHash] = struct{}{}
 
 	// check the pending list and add the possible votes that are correlated.
 	var next *list.Element

@@ -30,46 +30,6 @@ func (tx *testTx) String() string {
 	return fmt.Sprintf("%s (hash:%s)", string(tx.bytes), string(tx.hash))
 }
 
-func TestSequenceConsensus(t *testing.T) {
-	w := New()
-
-	// these are the validators from the network
-	w.UpdateValidatorSet([]Validator{
-		"vA", "vB", "vC",
-	})
-
-	/* votes
-	a: [tx0, tx1, tx3, tx2] -> voterA is cheating (tx3 before tx2)
-	b: [tx0, tx1, tx2, tx3]
-	c: [tx0, tx1, tx2, tx3]
-	*/
-
-	tx0 := newTestTxStr("tx0", "hash0")
-	tx1 := newTestTxStr("tx1", "hash1")
-	tx2 := newTestTxStr("tx2", "hash2")
-	tx3 := newTestTxStr("tx3", "hash3")
-
-	// Tx0
-	w.AddVote(newVote("vA", 0, tx0))
-	w.AddVote(newVote("vB", 0, tx0))
-	w.AddVote(newVote("vC", 0, tx0))
-
-	// Tx1
-	w.AddVote(newVote("vA", 1, tx1))
-	w.AddVote(newVote("vB", 1, tx1))
-	w.AddVote(newVote("vC", 1, tx1))
-
-	// Tx2,3
-	w.AddVote(newVote("vA", 2, tx3)) // cheating tx3
-	w.AddVote(newVote("vB", 2, tx2))
-	w.AddVote(newVote("vC", 2, tx2))
-
-	// Tx3,2
-	w.AddVote(newVote("vA", 3, tx2)) // cheating tx2
-	w.AddVote(newVote("vB", 3, tx3))
-	w.AddVote(newVote("vC", 3, tx3))
-}
-
 func TestIsBlockedBy(t *testing.T) {
 	w := New()
 	w.UpdateValidatorSet([]Validator{
@@ -124,5 +84,14 @@ func TestIsBlocked(t *testing.T) {
 
 	w.AddVote(newVote("s2", 0, tx0))
 	require.False(t, w.IsBlocked(tx0), "should be blocked with 3of4")
+
+	t.Run("Gapped", func(t *testing.T) {
+		tx := newTestTxStr("tx-gapped", "hash-gapped")
+
+		w.AddVote(newVote("s0", 2, tx))
+		w.AddVote(newVote("s1", 2, tx))
+		w.AddVote(newVote("s2", 2, tx))
+		require.True(t, w.IsBlocked(tx), "should be blocked if seq is gapped")
+	})
 
 }
