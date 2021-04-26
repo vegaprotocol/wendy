@@ -76,15 +76,15 @@ func (w *Wendy) AddTx(tx Tx) bool {
 // Votes are positioned given it's sequence number.
 // AddVote returns alse if the vote was already added.
 // NOTE: This function is safe for concurrent access.
-func (w *Wendy) AddVote(senderID ID, v *Vote) bool {
+func (w *Wendy) AddVote(v *Vote) bool {
 	w.votesMtx.Lock()
 	defer w.votesMtx.Unlock()
 
 	// Register the vote on the sender
-	sender, ok := w.senders[senderID]
+	sender, ok := w.senders[v.Pubkey]
 	if !ok {
-		sender = NewSender(senderID)
-		w.senders[senderID] = sender
+		sender = NewSender(v.Pubkey)
+		w.senders[v.Pubkey] = sender
 	}
 
 	// Register the vote based on its tx.Hash

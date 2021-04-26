@@ -27,16 +27,18 @@ type Tx interface {
 type Validator string
 
 type Vote struct {
+	Pubkey ID
+	// TODO: signature
+
 	Seq    uint64
 	TxHash Hash
 	Time   time.Time
-	// TODO: signature
 }
 
-func newVote(seq uint64, tx Tx) *Vote {
-	return &Vote{Seq: seq, TxHash: tx.Hash(), Time: time.Now()}
+func newVote(pub ID, seq uint64, tx Tx) *Vote {
+	return &Vote{Pubkey: pub, Seq: seq, TxHash: tx.Hash(), Time: time.Now()}
 }
 
 func (v *Vote) String() string {
-	return fmt.Sprintf("<seq=%d, hash=%s>", v.Seq, v.TxHash)
+	return fmt.Sprintf("<pubkey=%s seq=%d, hash=%s>", v.Pubkey, v.Seq, v.TxHash)
 }

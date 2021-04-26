@@ -50,24 +50,24 @@ func TestSequenceConsensus(t *testing.T) {
 	tx3 := newTestTxStr("tx3", "hash3")
 
 	// Tx0
-	w.AddVote("vA", newVote(0, tx0))
-	w.AddVote("vB", newVote(0, tx0))
-	w.AddVote("vC", newVote(0, tx0))
+	w.AddVote(newVote("vA", 0, tx0))
+	w.AddVote(newVote("vB", 0, tx0))
+	w.AddVote(newVote("vC", 0, tx0))
 
 	// Tx1
-	w.AddVote("vA", newVote(1, tx1))
-	w.AddVote("vB", newVote(1, tx1))
-	w.AddVote("vC", newVote(1, tx1))
+	w.AddVote(newVote("vA", 1, tx1))
+	w.AddVote(newVote("vB", 1, tx1))
+	w.AddVote(newVote("vC", 1, tx1))
 
 	// Tx2,3
-	w.AddVote("vA", newVote(2, tx3)) // cheating tx3
-	w.AddVote("vB", newVote(2, tx2))
-	w.AddVote("vC", newVote(2, tx2))
+	w.AddVote(newVote("vA", 2, tx3)) // cheating tx3
+	w.AddVote(newVote("vB", 2, tx2))
+	w.AddVote(newVote("vC", 2, tx2))
 
 	// Tx3,2
-	w.AddVote("vA", newVote(3, tx2)) // cheating tx2
-	w.AddVote("vB", newVote(3, tx3))
-	w.AddVote("vC", newVote(3, tx3))
+	w.AddVote(newVote("vA", 3, tx2)) // cheating tx2
+	w.AddVote(newVote("vB", 3, tx3))
+	w.AddVote(newVote("vC", 3, tx3))
 }
 
 func TestIsBlockedBy(t *testing.T) {
@@ -82,26 +82,26 @@ func TestIsBlockedBy(t *testing.T) {
 		newTestTxStr("tx1", "h1")
 
 	t.Run("1of4", func(t *testing.T) {
-		w.AddVote("s0", newVote(0, tx0))
-		w.AddVote("s0", newVote(1, tx1))
+		w.AddVote(newVote("s0", 0, tx0))
+		w.AddVote(newVote("s0", 1, tx1))
 		assert.True(t, w.IsBlockedBy(tx0, tx1), "should be blocked for Quorum %d", w.Quorum())
 	})
 
 	t.Run("2of4", func(t *testing.T) {
-		w.AddVote("s1", newVote(0, tx0))
-		w.AddVote("s1", newVote(1, tx1))
+		w.AddVote(newVote("s1", 0, tx0))
+		w.AddVote(newVote("s1", 1, tx1))
 		assert.True(t, w.IsBlockedBy(tx0, tx1), "should be blocked for Quorum %d", w.Quorum())
 	})
 
 	t.Run("3of4", func(t *testing.T) {
-		w.AddVote("s2", newVote(0, tx0))
-		w.AddVote("s2", newVote(1, tx1))
+		w.AddVote(newVote("s2", 0, tx0))
+		w.AddVote(newVote("s2", 1, tx1))
 		assert.False(t, w.IsBlockedBy(tx0, tx1), "should NOT be blocked for Quorum %d", w.Quorum())
 	})
 
 	t.Run("4of4", func(t *testing.T) {
-		w.AddVote("s2", newVote(0, tx1)) // these are in different order
-		w.AddVote("s2", newVote(1, tx0))
+		w.AddVote(newVote("s2", 0, tx1)) // these are in different order
+		w.AddVote(newVote("s2", 1, tx0))
 		assert.False(t, w.IsBlockedBy(tx0, tx1), "IsBlockedBy MUST be monotone")
 	})
 }
@@ -116,13 +116,13 @@ func TestIsBlocked(t *testing.T) {
 
 	tx0 := newTestTxStr("tx0", "h0")
 
-	w.AddVote("s0", newVote(0, tx0))
+	w.AddVote(newVote("s0", 0, tx0))
 	require.True(t, w.IsBlocked(tx0), "should be blocked with 1of4")
 
-	w.AddVote("s1", newVote(0, tx0))
+	w.AddVote(newVote("s1", 0, tx0))
 	require.True(t, w.IsBlocked(tx0), "should be blocked with 2of4")
 
-	w.AddVote("s2", newVote(0, tx0))
+	w.AddVote(newVote("s2", 0, tx0))
 	require.False(t, w.IsBlocked(tx0), "should be blocked with 3of4")
 
 }

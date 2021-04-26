@@ -68,11 +68,11 @@ func TestSenderBeforeTx1Tx2(t *testing.T) {
 	t.Run("WithPartialVotes", func(t *testing.T) {
 		s := NewSender("xxx")
 
-		s.AddVote(newVote(0, tx0))
+		s.AddVote(newVote("xxx", 0, tx0))
 		assert.False(t, s.Before(tx0, tx1))
 		assert.False(t, s.Before(tx1, tx0))
 
-		s.AddVote(newVote(0, tx3))
+		s.AddVote(newVote("xxx", 0, tx3))
 		assert.False(t, s.Before(tx2, tx3))
 		assert.False(t, s.Before(tx3, tx2))
 	})
@@ -80,10 +80,10 @@ func TestSenderBeforeTx1Tx2(t *testing.T) {
 	t.Run("FullVotes", func(t *testing.T) {
 		s := NewSender("xxx")
 
-		s.AddVote(newVote(0, tx0))
-		s.AddVote(newVote(1, tx1))
-		s.AddVote(newVote(2, tx2))
-		s.AddVote(newVote(3, tx3))
+		s.AddVote(newVote("xxx", 0, tx0))
+		s.AddVote(newVote("xxx", 1, tx1))
+		s.AddVote(newVote("xxx", 2, tx2))
+		s.AddVote(newVote("xxx", 3, tx3))
 
 		assert.True(t, s.Before(tx0, tx1))
 		assert.True(t, s.Before(tx0, tx2))

@@ -24,6 +24,8 @@ func (nt *nodeTx) String() string {
 	return fmt.Sprintf("from=%s, tx=(%s)", nt.from, nt.tx)
 }
 
+type debugFn func(*Node) bool
+
 type Node struct {
 	wendy *Wendy
 	name  ID
@@ -31,7 +33,7 @@ type Node struct {
 
 	seq uint64
 
-	debug bool
+	debug func(n *Node) bool
 	cheat bool
 }
 
@@ -45,8 +47,8 @@ func NewNode(name ID, peers ...*Node) *Node {
 	return node
 }
 
-func (n *Node) WithDebug(v bool) *Node {
-	n.debug = v
+func (n *Node) WithDebug(fn debugFn) *Node {
+	n.debug = fn
 	return n
 }
 
@@ -71,7 +73,7 @@ func (n *Node) AddPeers(peers ...*Node) {
 
 func (n *Node) nextVote(tx Tx) *Vote {
 	seq := atomic.AddUint64(&n.seq, 1)
-	return newVote(seq-1, tx)
+	return newVote(n.name, seq-1, tx)
 }
 
 func (n *Node) AddTx(tx Tx) {
@@ -80,7 +82,7 @@ func (n *Node) AddTx(tx Tx) {
 }
 
 func (n *Node) log(msg string, args ...interface{}) {
-	if n.debug {
+	if n.debug(n) {
 		fmt.Printf("[%s] %s\n", n.name, fmt.Sprintf(msg, args...))
 	}
 }
@@ -101,23 +103,23 @@ func (n *Node) handleTx(msg *nodeTx) {
 		n.log("tx -> %s", peer.name)
 		peer.handleTx(msg)
 	}
-	myVote := &nodeVote{from: n.name, owner: n.name, vote: n.nextVote(msg.tx)}
+	myVote := &nodeVote{from: n.name, vote: n.nextVote(msg.tx)}
 	n.handleVote(myVote)
 }
 
 func (n *Node) handleVote(msg *nodeVote) {
-	if isNew := n.wendy.AddVote(msg.owner, msg.vote); !isNew {
+	if isNew := n.wendy.AddVote(msg.vote); !isNew {
 		return
 	}
 
 	from := msg.from
 	msg.from = n.name
 	for _, peer := range n.peers {
-		if from == peer.name || msg.owner == peer.name {
+		if from == peer.name || msg.vote.Pubkey == peer.name {
 			continue
 		}
 
-		n.log("vote(%s) -> %s", msg.owner, peer.name)
+		n.log("vote(%s) -> %s", msg.vote.Pubkey, peer.name)
 		peer.handleVote(msg)
 	}
 

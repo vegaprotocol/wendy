@@ -6,7 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var debug = true
+var debug = func(n *Node) bool {
+	return n.name == "n4" || n.name == "n5"
+}
 
 type Network struct {
 	nodes map[ID]*Node
@@ -26,7 +28,7 @@ func NewNetwork(topology map[ID][]ID) *Network {
 		for _, id := range peers {
 			peer, ok := nodes[id]
 			if !ok {
-				peer = NewNode(id)
+				peer = NewNode(id).WithDebug(debug)
 				nodes[id] = peer
 			}
 			node.AddPeer(peer)
