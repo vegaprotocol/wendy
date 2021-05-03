@@ -24,6 +24,11 @@ type Tx interface {
 	Hash() Hash
 }
 
+// Block holds a list of Tx.
+type Block struct {
+	Txs []Tx
+}
+
 type Validator string
 
 type Vote struct {

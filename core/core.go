@@ -102,6 +102,18 @@ func (w *Wendy) AddVote(v *Vote) bool {
 	return sender.AddVote(v)
 }
 
+// CommitBlock iterate over the block's Txs set and remove them from Wendy's
+// internal state.
+// Txs present on block were probbaly added in the past via AddTx().
+func (w *Wendy) CommitBlock(block Block) {
+	w.votesMtx.Lock()
+	defer w.votesMtx.Unlock()
+
+	for _, sender := range w.senders {
+		sender.UpdateTxSet(block.Txs...)
+	}
+}
+
 // VoteByTxHash returns a vote given its tx.Hash
 // Returns nil if the vote hasn't been seen.
 // NOTE: This function is safe for concurrent access.

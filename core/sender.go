@@ -1,125 +1,140 @@
 package core
 
 import (
-	"container/list"
-	"math"
+	"code.vegaprotocol.io/wendy/utils/list"
 )
 
+// Sender represents a node in the network and keeps track of the votes Wendy
+// emits.
+// Senders are not safe for concurrent access.
+// NOTE: Since the sender never cleans up it's internal state, it always grow,
+// hence, we might need to add a persisten storage.
 type Sender struct {
-	id      ID
-	votes   *list.List
-	pending *list.List
+	id    ID
+	votes *list.List
 
-	// NOTE: Use a LRU?
-	seen map[Hash]struct{}
+	lastSeqSeen     uint64
+	lastSeqCommited uint64
+
+	commitedHashes map[Hash]struct{}
 }
 
+// NewSender returnsa new Sender instance.
 func NewSender(id ID) *Sender {
 	return &Sender{
-		id:      id,
-		votes:   list.New(),
-		pending: list.New(),
-		seen:    make(map[Hash]struct{}),
+		id:             id,
+		votes:          list.New(),
+		commitedHashes: make(map[Hash]struct{}),
 	}
 }
 
-// NextSeq returns the next expected sequence number.
-// Seq numbers starts with 0.
-func (s *Sender) NextSeq() uint64 {
-	el := s.votes.Back()
-	if el == nil {
-		return 0
-	}
-	return el.Value.(*Vote).Seq + 1
-}
+// LastSeqSeen returns the last higher consecutive Seq number registered by a vote.
+func (s *Sender) LastSeqSeen() uint64 { return s.lastSeqSeen }
+
+// LastSeqCommited returns XXX:
+func (s *Sender) LastSeqCommited() uint64 { return s.lastSeqCommited }
 
 // AddVote adds a vote to the vote list.
-// If the vote has been already inserted, it's ignored.
-// If the vote's Seq is gapped it's added to the pending list.
-// Everytime a vote is added the pending list if checked to see if we can add
-// them too.
+// Votes are insered in Seq ascendent order.
+// It returns true if the vote hasn't been added before, otherwise, the vote is
+// not added and false is returned.
 func (s *Sender) AddVote(v *Vote) bool {
-	nextSeq := s.NextSeq()
+	item := s.votes.First(func(e *list.Element) bool {
+		return e.Value.(*Vote).Seq >= v.Seq
+	})
 
-	// vote already inserted, ignore.
-	if v.Seq < nextSeq {
-		return false
+	// found a vote with equal or higher sequence number
+	if item != nil {
+		// duplicated seq number
+		if item.Value.(*Vote).Seq == v.Seq {
+			return false
+		}
+		item = s.votes.InsertBefore(v, item)
+	} else {
+		// no votes with higher Sequence number.
+		item = s.votes.PushBack(v)
 	}
 
-	// there is a gap between nextSeq and the vote, so we need to add it to the
-	// pending list but making sure it's not duplicated.
-	if v.Seq > nextSeq {
-		for e := s.pending.Front(); e != nil; e = e.Next() {
-			seq := e.Value.(*Vote).Seq
-			// already inserted, ignore.
-			if seq == v.Seq {
-				return false
-			}
-
-			// insert right before the next vote with higher seq number.
-			if seq > v.Seq {
-				s.pending.InsertBefore(v, e)
-				return true
-			}
-		}
-		// list was empty
-		s.pending.PushBack(v)
-		return true
-	}
-
-	// vote has the expected seq number.
-	s.votes.PushBack(v)
-
-	// we consider a vote `seen` only when its seq number is last+1.
-	s.seen[v.TxHash] = struct{}{}
-
-	// check the pending list and add the possible votes that are correlated.
-	var next *list.Element
-	for e := s.pending.Front(); e != nil; e = next {
-		next = e.Next()
-
-		next := e.Value.(*Vote)
-		nextSeq = s.NextSeq()
-		if nextSeq == next.Seq {
-			s.votes.PushBack(next)
-			s.pending.Remove(e)
-		}
-
-		// gap found
-		if nextSeq < next.Seq {
-			break
+	// update lastSeqSeen to the higher number before a gap is found.
+	for e := item; e != nil; e = e.Next() {
+		if v := e.Value.(*Vote).Seq; v == s.lastSeqSeen+1 {
+			s.lastSeqSeen++
 		}
 	}
 
 	return true
 }
 
+// AddVotes is a helper of AddVote to add more than one vote on a single call,
+// it ignores the return value.
+func (s *Sender) AddVotes(vs ...*Vote) {
+	for _, v := range vs {
+		s.AddVote(v)
+	}
+}
+
+func elementByHash(hash Hash) list.FilterFunc {
+	return func(e *list.Element) bool {
+		return e.Value.(*Vote).TxHash == hash
+	}
+}
+
 // Before returns true if tx1 has a lower sequence number than tx2.
 // If tx1 and/or tx2 are not seen, Before returns false.
 func (s *Sender) Before(tx1, tx2 Tx) bool {
-	var (
-		// we assume false (see `seq1 < seq2` below) until proven otherwise.
-		seq1 uint64 = math.MaxUint64
-		seq2 uint64
-	)
-	h1, h2 := tx1.Hash(), tx2.Hash()
+	hash1, hash2 := tx1.Hash(), tx2.Hash()
 
-	for e := s.votes.Front(); e != nil; e = e.Next() {
-		v := e.Value.(*Vote)
-		if v.TxHash == h1 {
-			seq1 = v.Seq
-		} else if v.TxHash == h2 {
-			seq2 = v.Seq
-		}
+	_, c1 := s.commitedHashes[hash1]
+	_, c2 := s.commitedHashes[hash2]
 
-		if seq1 < seq2 {
-			return true
-		}
+	// both commited, does not make sense calling this when both are
+	// commited.
+	if c1 && c2 {
+		return true
 	}
+
+	// tx1 commited, tx2 not commited
+	if c1 && !c2 {
+		return true
+	}
+
+	if !c1 && c2 {
+		return false
+	}
+
+	v1 := s.votes.First(elementByHash(hash1))
+	v2 := s.votes.First(elementByHash(hash2))
+
+	// both voted
+	if v1 != nil && v2 != nil {
+		return v1.Value.(*Vote).Seq < v2.Value.(*Vote).Seq
+	}
+
+	// tx1 voted and tx2 not voted
+	if v1 != nil && v2 == nil {
+		return true
+	}
+
 	return false
 }
 
+// Seen returns whether a tx has been voted for or not.
+// A Tx considered as seen iff there are no gaps befre the votes's seq number.
 func (s *Sender) Seen(tx Tx) bool {
-	_, ok := s.seen[tx.Hash()]
-	return ok
+	hash := tx.Hash()
+	item := s.votes.First(elementByHash(hash))
+	if item == nil {
+		return false
+	}
+
+	return item.Value.(*Vote).Seq <= s.lastSeqSeen
+}
+
+// UpdateTxSet will remove from its internal state all the references to a
+// corresponging tx present in the txs argument.
+// updateTxSet should be called when a new block is commited.
+func (s *Sender) UpdateTxSet(txs ...Tx) {
+	for _, tx := range txs {
+		s.commitedHashes[tx.Hash()] = struct{}{}
+	}
 }
