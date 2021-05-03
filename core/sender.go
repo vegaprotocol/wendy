@@ -8,7 +8,7 @@ import (
 // emits.
 // Senders are not safe for concurrent access.
 // NOTE: Since the sender never cleans up it's internal state, it always grow,
-// hence, we might need to add a persisten storage.
+// hence, we might need to add a persistent storage.
 type Sender struct {
 	id    ID
 	votes *list.List
@@ -16,6 +16,7 @@ type Sender struct {
 	lastSeqSeen     uint64
 	lastSeqCommited uint64
 
+	// D (delivered on the paper)
 	commitedHashes map[Hash]struct{}
 }
 
@@ -35,12 +36,13 @@ func (s *Sender) LastSeqSeen() uint64 { return s.lastSeqSeen }
 func (s *Sender) LastSeqCommited() uint64 { return s.lastSeqCommited }
 
 // AddVote adds a vote to the vote list.
-// Votes are insered in Seq ascendent order.
+// Votes are inserted in descendent order by Seq (higher sequence on the fron,
+// lower on the back).
 // It returns true if the vote hasn't been added before, otherwise, the vote is
 // not added and false is returned.
 func (s *Sender) AddVote(v *Vote) bool {
 	item := s.votes.First(func(e *list.Element) bool {
-		return e.Value.(*Vote).Seq >= v.Seq
+		return e.Value.(*Vote).Seq <= v.Seq
 	})
 
 	// found a vote with equal or higher sequence number
@@ -52,11 +54,11 @@ func (s *Sender) AddVote(v *Vote) bool {
 		item = s.votes.InsertBefore(v, item)
 	} else {
 		// no votes with higher Sequence number.
-		item = s.votes.PushBack(v)
+		item = s.votes.PushFront(v)
 	}
 
 	// update lastSeqSeen to the higher number before a gap is found.
-	for e := item; e != nil; e = e.Next() {
+	for e := item; e != nil; e = e.Prev() {
 		if v := e.Value.(*Vote).Seq; v == s.lastSeqSeen+1 {
 			s.lastSeqSeen++
 		}

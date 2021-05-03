@@ -143,7 +143,7 @@ func (w *Wendy) hasQuorum(fn func(s *Sender) bool) bool {
 }
 
 // IsBlockedBy determines if tx2 might have priority over tx1.
-// We say that tx1 is NOT bloked by tx2 if there are t+1 votes reporting tx1
+// We say that tx1 is NOT blocked by tx2 if there are t+1 votes reporting tx1
 // before tx2.
 func (w *Wendy) IsBlockedBy(tx1, tx2 Tx) bool {
 	// if there's no quorum that tx1 is before tx2, then tx1 is Blocked by tx2
