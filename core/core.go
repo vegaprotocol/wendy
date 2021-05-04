@@ -147,8 +147,8 @@ func (w *Wendy) hasQuorum(fn func(*Peer) bool) bool {
 // before tx2.
 func (w *Wendy) IsBlockedBy(tx1, tx2 Tx) bool {
 	// if there's no quorum that tx1 is before tx2, then tx1 is Blocked by tx2
-	return !w.hasQuorum(func(s *Peer) bool {
-		return s.Before(tx1, tx2)
+	return !w.hasQuorum(func(p *Peer) bool {
+		return p.Before(tx1, tx2)
 	})
 }
 
@@ -156,7 +156,27 @@ func (w *Wendy) IsBlockedBy(tx1, tx2 Tx) bool {
 // might be scheduled with priority to tx.
 func (w *Wendy) IsBlocked(tx Tx) bool {
 	// if there's no quorum that tx has been seen, then IsBlocked
-	return !w.hasQuorum(func(s *Peer) bool {
-		return s.Seen(tx)
+	return !w.hasQuorum(func(p *Peer) bool {
+		return p.Seen(tx)
 	})
+}
+
+// Recompute is invoked on new{Block, Vote or Tx}
+// returns
+func (w *Wendy) Recompute() map[Hash][]Tx {
+	// seen: tx1, tx2, tx3, tx4
+	/* {
+		"tx1": ["tx1", "tx2", "tx3", "tx4"],
+		"tx2": ["tx2", "tx1", "tx3", "tx4"],
+		"tx3": ["tx3", "tx1", "tx2", "tx4"],
+		"tx4": ["tx4", "tx1", "tx2", "tx3"],
+	}*/
+
+	// 0. for every tx {
+	// 1. Add myself to my blocking set
+	// 2. I loop through my blocking set
+	// 3. any one blocking someone from my blocking set is added to the blocking set
+	// 4. goto 2. if I add a new tx to my blocking set.
+	// }
+	return nil
 }

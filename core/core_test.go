@@ -129,29 +129,26 @@ func TestFairnessLoop(t *testing.T) {
 		"Node0", "Node1", "Node2", "Node3",
 	})
 
-	w.AddVote(newVote("Node0", 0, tx1))
-	w.AddVote(newVote("Node0", 1, tx2))
-	w.AddVote(newVote("Node0", 2, tx3))
-	w.AddVote(newVote("Node0", 3, tx4))
+	txsMap := map[ID][]Tx{
+		"Node0": {tx1, tx2, tx3, tx4},
+		"Node1": {tx2, tx3, tx4, tx1},
+		"Node2": {tx3, tx4, tx1, tx2},
+		"Node3": {tx4, tx1, tx2, tx3},
+	}
 
-	w.AddVote(newVote("Node1", 0, tx2))
-	w.AddVote(newVote("Node1", 1, tx3))
-	w.AddVote(newVote("Node1", 2, tx4))
-	w.AddVote(newVote("Node1", 3, tx1))
+	for node, txs := range txsMap {
+		// we use the tx index as seq
+		for i, tx := range txs {
+			seq := uint64(i)
+			t.Logf("%s: AddVote(seq=%d, tx=%s)", node, seq, tx)
+			w.AddVote(newVote(node, seq, tx))
+		}
+		t.Logf("")
+	}
 
-	w.AddVote(newVote("Node2", 0, tx3))
-	w.AddVote(newVote("Node2", 1, tx4))
-	w.AddVote(newVote("Node2", 2, tx1))
-	w.AddVote(newVote("Node2", 3, tx2))
-
-	w.AddVote(newVote("Node3", 0, tx4))
-	w.AddVote(newVote("Node3", 1, tx1))
-	w.AddVote(newVote("Node3", 2, tx2))
-	w.AddVote(newVote("Node3", 3, tx3))
-
-	// If tx1 is not BlockedBy tx2 we say that tx1 has priority over tx2.
-	assert.False(t, w.IsBlockedBy(tx1, tx2))
-	assert.False(t, w.IsBlockedBy(tx2, tx3))
-	assert.False(t, w.IsBlockedBy(tx3, tx4))
-	assert.False(t, w.IsBlockedBy(tx4, tx1))
+	// If tx2 IsBlockedBy tx1 we say that tx1 has priority over tx2.
+	require.True(t, w.IsBlockedBy(tx2, tx1))
+	require.True(t, w.IsBlockedBy(tx3, tx2))
+	require.True(t, w.IsBlockedBy(tx4, tx3))
+	require.True(t, w.IsBlockedBy(tx1, tx4))
 }
