@@ -14,20 +14,20 @@ type Wendy struct {
 
 	votesMtx sync.RWMutex
 	votes    map[Hash]*Vote
-	senders  map[ID]*Sender
+	peers    map[ID]*Peer
 }
 
 func New() *Wendy {
 	return &Wendy{
-		txs:     make(map[Hash]Tx),
-		votes:   make(map[Hash]*Vote),
-		senders: make(map[ID]*Sender),
+		txs:   make(map[Hash]Tx),
+		votes: make(map[Hash]*Vote),
+		peers: make(map[ID]*Peer),
 	}
 }
 
 // UpdateValidatorSet updates the list of validators in the consensus.
 // Updating the validator set might affect the return value of Quorum().
-// Upon updating the senders that are not in the new validator set are removed.
+// Upon updating the peers that are not in the new validator set are removed.
 func (w *Wendy) UpdateValidatorSet(vs []Validator) {
 	w.validators = vs
 
@@ -38,18 +38,18 @@ func (w *Wendy) UpdateValidatorSet(vs []Validator) {
 
 	w.votesMtx.Lock()
 	defer w.votesMtx.Unlock()
-	senders := make(map[ID]*Sender)
-	// keep all the senders we already have and create new one if not present
-	// those old senders that are not part of the new set will be discarded.
+	peers := make(map[ID]*Peer)
+	// keep all the peers we already have and create new one if not present
+	// those old peers that are not part of the new set will be discarded.
 	for _, v := range vs {
 		key := ID(v)
-		if s, ok := w.senders[key]; ok {
-			senders[key] = s
+		if s, ok := w.peers[key]; ok {
+			peers[key] = s
 		} else {
-			senders[key] = NewSender(key)
+			peers[key] = NewPeer(key)
 		}
 	}
-	w.senders = senders
+	w.peers = peers
 }
 
 // HonestParties returns the required number of votes to be sure that at least
@@ -89,17 +89,17 @@ func (w *Wendy) AddVote(v *Vote) bool {
 	w.votesMtx.Lock()
 	defer w.votesMtx.Unlock()
 
-	// Register the vote on the sender
-	sender, ok := w.senders[v.Pubkey]
+	// Register the vote on the peer
+	peer, ok := w.peers[v.Pubkey]
 	if !ok {
-		sender = NewSender(v.Pubkey)
-		w.senders[v.Pubkey] = sender
+		peer = NewPeer(v.Pubkey)
+		w.peers[v.Pubkey] = peer
 	}
 
 	// Register the vote based on its tx.Hash
 	w.votes[v.TxHash] = v
 
-	return sender.AddVote(v)
+	return peer.AddVote(v)
 }
 
 // CommitBlock iterate over the block's Txs set and remove them from Wendy's
@@ -109,8 +109,8 @@ func (w *Wendy) CommitBlock(block Block) {
 	w.votesMtx.Lock()
 	defer w.votesMtx.Unlock()
 
-	for _, sender := range w.senders {
-		sender.UpdateTxSet(block.Txs...)
+	for _, peer := range w.peers {
+		peer.UpdateTxSet(block.Txs...)
 	}
 }
 
@@ -123,15 +123,15 @@ func (w *Wendy) VoteByTxHash(hash Hash) *Vote {
 	return w.votes[hash]
 }
 
-// hasQuorum evaluates fn for every register sender.
+// hasQuorum evaluates fn for every registered peer.
 // It returns true if fn returned true at least w.Quorum() times.
 // NOTE: This function is safe for concurrent access.
-func (w *Wendy) hasQuorum(fn func(s *Sender) bool) bool {
+func (w *Wendy) hasQuorum(fn func(s *Peer) bool) bool {
 	w.votesMtx.RLock()
 	defer w.votesMtx.RUnlock()
 
 	var votes int
-	for _, s := range w.senders {
+	for _, s := range w.peers {
 		if ok := fn(s); ok {
 			votes++
 			if votes == w.quorum {
@@ -147,7 +147,7 @@ func (w *Wendy) hasQuorum(fn func(s *Sender) bool) bool {
 // before tx2.
 func (w *Wendy) IsBlockedBy(tx1, tx2 Tx) bool {
 	// if there's no quorum that tx1 is before tx2, then tx1 is Blocked by tx2
-	return !w.hasQuorum(func(s *Sender) bool {
+	return !w.hasQuorum(func(s *Peer) bool {
 		return s.Before(tx1, tx2)
 	})
 }
@@ -156,7 +156,7 @@ func (w *Wendy) IsBlockedBy(tx1, tx2 Tx) bool {
 // might be scheduled with priority to tx.
 func (w *Wendy) IsBlocked(tx Tx) bool {
 	// if there's no quorum that tx has been seen, then IsBlocked
-	return !w.hasQuorum(func(s *Sender) bool {
+	return !w.hasQuorum(func(s *Peer) bool {
 		return s.Seen(tx)
 	})
 }

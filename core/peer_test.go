@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var newTestSender = func() *Sender { return NewSender("xxx") }
+var newTestPeer = func() *Peer { return NewPeer("xxx") }
 
 var (
 	tx0 = newTestTxStr("tx0", "h0")
@@ -16,9 +16,9 @@ var (
 	tx4 = newTestTxStr("tx4", "h4")
 )
 
-func TestSendersVoting(t *testing.T) {
+func TestPeersVoting(t *testing.T) {
 	t.Run("AddingVotes", func(t *testing.T) {
-		s := newTestSender()
+		s := newTestPeer()
 		tests := []struct {
 			vote *Vote
 			// expectations below
@@ -68,7 +68,7 @@ func TestBefore(t *testing.T) {
 	// If t1 and t2 are both Voted, `before()` will return true if t1.Seq is < than t2.Seq.
 
 	t.Run("OneCommited", func(t *testing.T) {
-		s := newTestSender()
+		s := newTestPeer()
 		s.AddVotes(
 			newVote(s.id, 0, tx0),
 			newVote(s.id, 1, tx1),
@@ -92,7 +92,7 @@ func TestBefore(t *testing.T) {
 	})
 
 	t.Run("BothVoted", func(t *testing.T) {
-		s := newTestSender()
+		s := newTestPeer()
 		s.AddVotes(
 			newVote(s.id, 0, tx0),
 			newVote(s.id, 1, tx1),
@@ -108,7 +108,7 @@ func TestBefore(t *testing.T) {
 	})
 
 	t.Run("NoneSeen", func(t *testing.T) {
-		s := newTestSender()
+		s := newTestPeer()
 		assert.False(t, s.Before(tx0, tx1))
 		assert.False(t, s.Before(tx1, tx0))
 	})
