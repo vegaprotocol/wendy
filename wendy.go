@@ -56,23 +56,23 @@ type validatorState struct {
 	Y_Coord        int
 	SequenceNumber int
 	OtherSeqNos    [20]int // Last sequence number seen by others
-	Timestamps	   [20]int // Highest timestamps on votes from others
+	Timestamps     [20]int // Highest timestamps on votes from others
 	Transactions   []TransactionV
 	LastDoneTX     int // Last Transaction auch that all earlier ones
 	// have finished (needed to clear memory)
-	IncomingQ [20][]message // Votes we can't process yet due to the wrong sequence number
-	Br        [][]string    // Used to compute the blockings. For each transactions, store the blocking transactions
-	Q         []string      // List of requests ready for the next block
-	D         []string      // List of requests already dealt with
-	U         []string      // List of all known requests not in Q or D
-	fairnessDef[20] int // Fairness definition used for different market identifiers. 
-						// Also for now limited to 20 market identifiers	
+	IncomingQ   [20][]message // Votes we can't process yet due to the wrong sequence number
+	Br          [][]string    // Used to compute the blockings. For each transactions, store the blocking transactions
+	Q           []string      // List of requests ready for the next block
+	D           []string      // List of requests already dealt with
+	U           []string      // List of all known requests not in Q or D
+	fairnessDef [20]int       // Fairness definition used for different market identifiers.
+	// Also for now limited to 20 market identifiers
 }
 
 var worldTime int
 var messageBuffer []message
 var vd [20]validatorState // Max number of validators for now
-				
+
 // Debugging and controlling
 var n int // The first validator is ID 1, not 0
 var t int
@@ -402,79 +402,93 @@ func processBlock(b string) { // Simulate the underlying blockchain, i.e.,
 // Network level function to allow us to trigger the fairness switching in validators.
 // Normally, of course, that would be done by some internal event.
 func switchAllFairness() {
-	i:=len(vd)-1;
-	for (i>-0) {
+	i := len(vd) - 1
+	for i > -0 {
 		switchFairness(i)
-		i--;
+		i--
 	}
 }
 
 func switchFairness(id int) {
-// This function demonstrates how the fairness definition can be switched
-// during the life protocol; this is the part that is implemented
-// on the validator side. Usually deactivated to avoid confusion
-// For testing purposes, we and only look at market id 1.
+	// This function demonstrates how the fairness definition can be switched
+	// during the life protocol; this is the part that is implemented
+	// on the validator side. Usually deactivated to avoid confusion
+	// For testing purposes, we and only look at market id 1.
 
-// Example: The order fairness definition allows for transaction sequences
-// that would reqire an arbitratily sized block. We test is the number
-// of unprocessed transactions is unhealthily high, and if so, switch to
-// a definition that can clean up. Once it has done so, we switch back,
-// with some transactions now having moved from U to Q.
-// Note that doint it like this means there's transactions in Q from
-// several different fairness definitions 
-if (len(vd[id].U) > 1000 && vd[id].fairnessDef[1]==1 ) {
-	vd[id].fairnessDef[1] = 2;
-	recompute(1)
-	vd[id].fairnessDef[1] = 1;
-	recompute(1)
-  }
+	// Example: The order fairness definition allows for transaction sequences
+	// that would reqire an arbitratily sized block. We test is the number
+	// of unprocessed transactions is unhealthily high, and if so, switch to
+	// a definition that can clean up. Once it has done so, we switch back,
+	// with some transactions now having moved from U to Q.
+	// Note that doint it like this means there's transactions in Q from
+	// several different fairness definitions
+	if len(vd[id].U) > 1000 && vd[id].fairnessDef[1] == 1 {
+		vd[id].fairnessDef[1] = 2
+		recompute(1)
+		vd[id].fairnessDef[1] = 1
+		recompute(1)
+	}
 
-  // Another example, as above one is likely to never trigger. This just
-  // switches after some time.
-  if (worldTime > 4000 && vd[id].fairnessDef[1]==2) {
-	  vd[id].fairnessDef[1] = 1
-	  recompute(1)
-  }
+	// Another example, as above one is likely to never trigger. This just
+	// switches after some time.
+	if worldTime > 4000 && vd[id].fairnessDef[1] == 2 {
+		vd[id].fairnessDef[1] = 1
+		recompute(1)
+	}
 }
 
 // The core functions for fairness - isBlocking and isBlocked - now
-// simply forwards to the corresponding function for the 
+// simply forwards to the corresponding function for the
 // appropriate fairness definition a market wants to use.
 // Fun add-on: It would even be possible to logically combine
 // definitions, i.e., have a market follow two of them at once
 // (combining their individual functions with OR), or follow one
 // of two whichever is easier (dito with AND)
 func isBlocking(s1 string, s2 string, id int) bool {
-	mid1 := vd[id].Transactions[idByPayload(s1,id)].Marketid;
-	mid2 := vd[id].Transactions[idByPayload(s2,id)].Marketid;
-	if (mid1 != mid2) { return false}
-	if (vd[id].fairnessDef[mid1] == 1) {return isBlocking_order(s1,s2,id)}
-	if (vd[id].fairnessDef[mid1] == 2) {return isBlocking_timed(s1,s2,id)}
-	if (vd[id].fairnessDef[mid1] == 3) {return isBlocking_none(s1,s2,id)}
+	mid1 := vd[id].Transactions[idByPayload(s1, id)].Marketid
+	mid2 := vd[id].Transactions[idByPayload(s2, id)].Marketid
+	if mid1 != mid2 {
+		return false
+	}
+	if vd[id].fairnessDef[mid1] == 1 {
+		return isBlocking_order(s1, s2, id)
+	}
+	if vd[id].fairnessDef[mid1] == 2 {
+		return isBlocking_timed(s1, s2, id)
+	}
+	if vd[id].fairnessDef[mid1] == 3 {
+		return isBlocking_none(s1, s2, id)
+	}
 	return false
 }
 
 func isBlockedT(s string, id int) bool {
-	mid := vd[id].Transactions[idByPayload(s,id)].Marketid;
+	mid := vd[id].Transactions[idByPayload(s, id)].Marketid
 
-
-	if (vd[id].fairnessDef[mid] == 1) {return isBlockedT_order(s,id)}
-	if (vd[id].fairnessDef[mid] == 2) {return isBlockedT_timed(s,id)}
-	if (vd[id].fairnessDef[mid] == 3) {return isBlockedT_none(s,id)}
+	if vd[id].fairnessDef[mid] == 1 {
+		return isBlockedT_order(s, id)
+	}
+	if vd[id].fairnessDef[mid] == 2 {
+		return isBlockedT_timed(s, id)
+	}
+	if vd[id].fairnessDef[mid] == 3 {
+		return isBlockedT_none(s, id)
+	}
 	return false
 }
+
 // No fairness Implementation
 // While we have a manual non-fairness-needed option (Market Identifier 0), a more
 // elegant way is to also add it as an option.
 // The disadvantage is that this means validators still cast votes, which in most
 // cases wastes a bit of bandwidth. Also, to be as efficient as we are with MId 0, we'd
 // need to recompute after getting a new transaction as well, which adds a bit
-// to the computational load (though that should be negligible) 
-func isBlockedT_none (s string,id int) bool {
+// to the computational load (though that should be negligible)
+func isBlockedT_none(s string, id int) bool {
 	return false
 }
 
-func isBlocking_none (s1 string,s2 string,id int) bool {
+func isBlocking_none(s1 string, s2 string, id int) bool {
 	return false
 }
 
@@ -482,50 +496,58 @@ func isBlocking_none (s1 string,s2 string,id int) bool {
 // Timed Fairness Implementation
 //
 
-func getMaxTime(v[] Vote) int {
-	i:= len(v)-1
-	max:=0
-	for (i>=0) {
-		if (v[i].ReceivedTime > max) {
+func getMaxTime(v []Vote) int {
+	i := len(v) - 1
+	max := 0
+	for i >= 0 {
+		if v[i].ReceivedTime > max {
 			max = v[i].ReceivedTime
 		}
-		i--;
+		i--
 	}
 	return max
 }
 
-func getMinTime(v[] Vote) int {
-	i:= len(v)-1
-	min:=v[1].ReceivedTime
-	for (i>=0) {
-		if (v[i].ReceivedTime <min) {
-			min= v[i].ReceivedTime
+func getMinTime(v []Vote) int {
+	i := len(v) - 1
+	min := v[1].ReceivedTime
+	for i >= 0 {
+		if v[i].ReceivedTime < min {
+			min = v[i].ReceivedTime
 		}
-		i--;
+		i--
 	}
 	return min
 }
 func isBlockedT_timed(s string, id int) bool {
-	// A transaction tx is blocked (i.e., it is possible for a jet unknown transaction 
-	// to block it) if it's still possible that some transactions can come up with n-t 
+	// A transaction tx is blocked (i.e., it is possible for a jet unknown transaction
+	// to block it) if it's still possible that some transactions can come up with n-t
 	// votes with a timestamp samller than the smallest of tx.
-	// Thus, we wait for t+1 votes for tx, and take the maximum (we know that the 
-	// smallest honest vote for tx is at least that). Then, is we have t+1 
+	// Thus, we wait for t+1 votes for tx, and take the maximum (we know that the
+	// smallest honest vote for tx is at least that). Then, is we have t+1
 	// validators having issued votes with a bigger timestamp, we know that any
-	// unseen transaction has at least one honest timestamp larger than the smallest 
+	// unseen transaction has at least one honest timestamp larger than the smallest
 	// of tx.
-	
-	index := idByPayload(s,id)
-	if ((len(vd[id].Transactions[index].Votes)) < t+1) {return true}
-	max:=getMaxTime(vd[id].Transactions[index].Votes);
-	
-	i:=1;
-	counter:=0
-	for (i<=n) {
-		if (vd[id].Timestamps[i] > max) {counter++}
+
+	index := idByPayload(s, id)
+	if (len(vd[id].Transactions[index].Votes)) < t+1 {
+		return true
+	}
+	max := getMaxTime(vd[id].Transactions[index].Votes)
+
+	i := 1
+	counter := 0
+	for i <= n {
+		if vd[id].Timestamps[i] > max {
+			counter++
+		}
 		i++
 	}
-	if (counter > t) {return(false)} else {return(true)}
+	if counter > t {
+		return (false)
+	} else {
+		return (true)
+	}
 }
 
 func isBlocking_timed(s1 string, s2 string, id int) bool {
@@ -535,42 +557,46 @@ func isBlocking_timed(s1 string, s2 string, id int) bool {
 	// the smallest time an honest voter for s2 saw is smaller than the largest time
 	// an honest voter for s1 saw.
 	// To compute this, find the largest time of a vote for s1 we can guarantee to
-	// have originated from an honest party (i.e., the time of the t+1st vote) and 
-	// correspondintly for s2.  
+	// have originated from an honest party (i.e., the time of the t+1st vote) and
+	// correspondintly for s2.
 	index1 := idByPayload(s1, id)
-	index2 := idByPayload(s2, id) 
-	time1   := 0;
-	time2   := 0;
-	rank    := 0;
-	i:=len(vd[id].Transactions[index1].Votes)-1
-	j:=0;
+	index2 := idByPayload(s2, id)
+	time1 := 0
+	time2 := 0
+	rank := 0
+	i := len(vd[id].Transactions[index1].Votes) - 1
+	j := 0
 	// We need the t+1st biggest element in s1 and the t+1 smallest in s2
-	for (i>=0) {
-		rank = 0;
-		j = len(vd[id].Transactions[index1].Votes)-1
-	    for (j >0) {
-			if (vd[id].Transactions[index1].Votes[i].ReceivedTime > vd[id].Transactions[index1].Votes[j].ReceivedTime) {
-		 		rank++
+	for i >= 0 {
+		rank = 0
+		j = len(vd[id].Transactions[index1].Votes) - 1
+		for j > 0 {
+			if vd[id].Transactions[index1].Votes[i].ReceivedTime > vd[id].Transactions[index1].Votes[j].ReceivedTime {
+				rank++
 			}
-			j--;
+			j--
 		}
-		if (rank == t+1) {time1 = vd[id].Transactions[index1].Votes[i].ReceivedTime }
-		i--;
+		if rank == t+1 {
+			time1 = vd[id].Transactions[index1].Votes[i].ReceivedTime
+		}
+		i--
 	}
-	i=len(vd[id].Transactions[index2].Votes)-1
-	for (i>=0) {
-		rank = 0;
-		j = len(vd[id].Transactions[index2].Votes)-1
-	    for (j >0) {
-			if (vd[id].Transactions[index2].Votes[i].ReceivedTime < vd[id].Transactions[index2].Votes[j].ReceivedTime) {
-		 		rank++
+	i = len(vd[id].Transactions[index2].Votes) - 1
+	for i >= 0 {
+		rank = 0
+		j = len(vd[id].Transactions[index2].Votes) - 1
+		for j > 0 {
+			if vd[id].Transactions[index2].Votes[i].ReceivedTime < vd[id].Transactions[index2].Votes[j].ReceivedTime {
+				rank++
 			}
-			j--;
+			j--
 		}
-		if (rank == t+1) {time2 = vd[id].Transactions[index2].Votes[i].ReceivedTime }
-		i--;
+		if rank == t+1 {
+			time2 = vd[id].Transactions[index2].Votes[i].ReceivedTime
+		}
+		i--
 	}
-	return (time2>time1)
+	return (time2 > time1)
 
 }
 
@@ -832,7 +858,7 @@ func recompute(id int) {
 		// So, we're not done yet
 
 		if id == debugLeader {
-			fmt.Println("Overview Br before filling in:",id)
+			fmt.Println("Overview Br before filling in:", id)
 			fmt.Println("------------------------------------")
 			fmt.Println(vd[id].Br)
 			fmt.Println("------------------------------------")
@@ -922,7 +948,7 @@ func recompute(id int) {
 		// We now move the transactions that are not blocked from U (unscheduled)
 		// to Q (queue with requests for the blockchain to pick up.)
 		// TODO
-		// In the full implementation, this would be more complex. 
+		// In the full implementation, this would be more complex.
 		//    Q cannot just be a linear queue, but needs to remember which transactions
 		//	  belong together in case the underlying blockchain cannot pick up all
 		//    transactions in Q at once. If we don't allow for switching the fairness definition
@@ -936,7 +962,7 @@ func recompute(id int) {
 		//	  all of Q can be consumed at once reliably), or to have different independent Qs
 		//	  for each fairness definition.
 		//
-		//	  Generally, we would put the transactions in Q into the chain in the 
+		//	  Generally, we would put the transactions in Q into the chain in the
 		//    order n which they entered Q, eachtogether with all transactions that
 		//    for fairness reasons have to be in the same block (and aren't in yet).
 		//	  Thus, we could store with each TX in Q what the fairness rule was when it
@@ -950,8 +976,8 @@ func recompute(id int) {
 		//    constraints. The dissadvantage is that the B(tx) sets are are bigger at the
 		//    time they're entered into Q than they need to be at the time when Q is emptied,
 		//    as new votes have turned upby then that could decrease the size of the sets.
-		//    Another thing to consider is to create a virtual subblock 
-		//    with all of Q, take as many block as it needs to transport it, and then move 
+		//    Another thing to consider is to create a virtual subblock
+		//    with all of Q, take as many block as it needs to transport it, and then move
 		//    on to the next block. This makes a few things easier, but may waste bandwidth.
 		//    For the current purpose of this simulation, it's enough to just assume
 		//    that the blockchain has enough capacity to consume all of Q and worry
@@ -1159,7 +1185,7 @@ func processMessage(m message, id int) bool {
 
 			TX.Payload = vote.Payload
 			vd[id].OtherSeqNos[m.sender] = vote.SeqNumber
-			if (vd[id].Timestamps[m.sender] < vote.ReceivedTime) {
+			if vd[id].Timestamps[m.sender] < vote.ReceivedTime {
 				vd[id].Timestamps[m.sender] = vote.ReceivedTime
 			}
 			if !seen(vote.Payload, id) {
@@ -1419,7 +1445,7 @@ func networkNew() {
 				if m.mtype == "BlockTrigger" {
 
 					processBlock(m.content)
-					switchAllFairness();
+					switchAllFairness()
 				}
 			}
 			i = i + 1
@@ -1435,25 +1461,25 @@ func initWendy() {
 	totalVotes = 0
 	maxSpread = 0
 	worldTime = 0
-	i := len(vd)-1
+	i := len(vd) - 1
 	for i > 0 {
 		vd[i].X_Coord = rand.Intn(100)
 		vd[i].Y_Coord = rand.Intn(100)
-		vd[i].LastDoneTX = -1						
-		j := len(vd)-1
+		vd[i].LastDoneTX = -1
+		j := len(vd) - 1
 		for j > 0 {
 			vd[i].OtherSeqNos[j] = -1
 			vd[i].Timestamps[j] = -1
 			j = j - 1
 		}
-		j = len(vd[i].fairnessDef)-1
-		for (j>0){
-			vd[i].fairnessDef[j] =1
+		j = len(vd[i].fairnessDef) - 1
+		for j > 0 {
+			vd[i].fairnessDef[j] = 1
 			j--
 		}
 		i = i - 1
 	}
-	
+
 }
 
 func endStatus() {
