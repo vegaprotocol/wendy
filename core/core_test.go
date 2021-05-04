@@ -30,6 +30,15 @@ func (tx *testTx) String() string {
 	return fmt.Sprintf("%s (hash:%s)", string(tx.bytes), string(tx.hash))
 }
 
+// txN are used accross different tests
+var (
+	tx0 = newTestTxStr("tx0", "h0")
+	tx1 = newTestTxStr("tx1", "h1")
+	tx2 = newTestTxStr("tx2", "h2")
+	tx3 = newTestTxStr("tx3", "h3")
+	tx4 = newTestTxStr("tx4", "h4")
+)
+
 func TestIsBlockedBy(t *testing.T) {
 	w := New()
 	w.UpdateValidatorSet([]Validator{
@@ -93,5 +102,56 @@ func TestIsBlocked(t *testing.T) {
 		w.AddVote(newVote("s2", 2, tx))
 		require.True(t, w.IsBlocked(tx), "should be blocked if seq is gapped")
 	})
+}
 
+func TestFairnessLoop(t *testing.T) {
+	// For block order fairness, the most critical test case is a fairness
+	// loop. Say we have four validators and four transactions, and the order
+	// is:
+	//         +-----------------------+
+	//         |       Sequence        |
+	// +-------+-----+-----+-----+-----+
+	// | Node  |  0  |  1  |  2  |  3  |
+	// +-------+-----+-----+-----+-----+
+	// | Node0 | Tx1 | Tx2 | Tx3 | Tx4 |
+	// | Node1 | Tx2 | Tx3 | Tx4 | Tx1 |
+	// | Node2 | Tx3 | Tx4 | Tx1 | Tx2 |
+	// | Node3 | Tx4 | Tx1 | Tx2 | Tx3 |
+	// +-------+-----+-----+-----+-----+
+	//
+	// In this case, we have a loop, that tx1 has priority over tx2, which has
+	// priority over tx3, which has priority over tx4, which has priority over
+	// tx1. This is, in fact, the reason we can only require that transactions
+	// end up in the same block, rather than implementing an order right away.
+
+	w := New()
+	w.UpdateValidatorSet([]Validator{
+		"Node0", "Node1", "Node2", "Node3",
+	})
+
+	w.AddVote(newVote("Node0", 0, tx1))
+	w.AddVote(newVote("Node0", 1, tx2))
+	w.AddVote(newVote("Node0", 2, tx3))
+	w.AddVote(newVote("Node0", 3, tx4))
+
+	w.AddVote(newVote("Node1", 0, tx2))
+	w.AddVote(newVote("Node1", 1, tx3))
+	w.AddVote(newVote("Node1", 2, tx4))
+	w.AddVote(newVote("Node1", 3, tx1))
+
+	w.AddVote(newVote("Node2", 0, tx3))
+	w.AddVote(newVote("Node2", 1, tx4))
+	w.AddVote(newVote("Node2", 2, tx1))
+	w.AddVote(newVote("Node2", 3, tx2))
+
+	w.AddVote(newVote("Node3", 0, tx4))
+	w.AddVote(newVote("Node3", 1, tx1))
+	w.AddVote(newVote("Node3", 2, tx2))
+	w.AddVote(newVote("Node3", 3, tx3))
+
+	// If tx1 is not BlockedBy tx2 we say that tx1 has priority over tx2.
+	assert.False(t, w.IsBlockedBy(tx1, tx2))
+	assert.False(t, w.IsBlockedBy(tx2, tx3))
+	assert.False(t, w.IsBlockedBy(tx3, tx4))
+	assert.False(t, w.IsBlockedBy(tx4, tx1))
 }

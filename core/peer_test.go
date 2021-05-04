@@ -8,14 +8,6 @@ import (
 
 var newTestPeer = func() *Peer { return NewPeer("xxx") }
 
-var (
-	tx0 = newTestTxStr("tx0", "h0")
-	tx1 = newTestTxStr("tx1", "h1")
-	tx2 = newTestTxStr("tx2", "h2")
-	tx3 = newTestTxStr("tx3", "h3")
-	tx4 = newTestTxStr("tx4", "h4")
-)
-
 func TestPeersVoting(t *testing.T) {
 	t.Run("AddingVotes", func(t *testing.T) {
 		s := newTestPeer()

@@ -126,13 +126,13 @@ func (w *Wendy) VoteByTxHash(hash Hash) *Vote {
 // hasQuorum evaluates fn for every registered peer.
 // It returns true if fn returned true at least w.Quorum() times.
 // NOTE: This function is safe for concurrent access.
-func (w *Wendy) hasQuorum(fn func(s *Peer) bool) bool {
+func (w *Wendy) hasQuorum(fn func(*Peer) bool) bool {
 	w.votesMtx.RLock()
 	defer w.votesMtx.RUnlock()
 
 	var votes int
-	for _, s := range w.peers {
-		if ok := fn(s); ok {
+	for _, peer := range w.peers {
+		if ok := fn(peer); ok {
 			votes++
 			if votes == w.quorum {
 				return true
