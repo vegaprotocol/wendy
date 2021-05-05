@@ -161,22 +161,60 @@ func (w *Wendy) IsBlocked(tx Tx) bool {
 	})
 }
 
-// Recompute is invoked on new{Block, Vote or Tx}
-// returns
-func (w *Wendy) Recompute() map[Hash][]Tx {
-	// seen: tx1, tx2, tx3, tx4
-	/* {
-		"tx1": ["tx1", "tx2", "tx3", "tx4"],
-		"tx2": ["tx2", "tx1", "tx3", "tx4"],
-		"tx3": ["tx3", "tx1", "tx2", "tx4"],
-		"tx4": ["tx4", "tx1", "tx2", "tx3"],
-	}*/
+// BlockingSet should be invoked on every new{Block, Vote or Tx} and returns a
+// list of blocking Txs for all the currently seen Txs.
+func (w *Wendy) BlockingSet() BlockingSet {
+	// Copy all tx from the local map to an array
+	var txs []Tx = make([]Tx, 0, len(w.txs))
+	w.txsMtx.RLock()
+	for _, tx := range w.txs {
+		txs = append(txs, tx)
+	}
+	w.txsMtx.RUnlock()
 
-	// 0. for every tx {
-	// 1. Add myself to my blocking set
-	// 2. I loop through my blocking set
-	// 3. any one blocking someone from my blocking set is added to the blocking set
-	// 4. goto 2. if I add a new tx to my blocking set.
-	// }
-	return nil
+	// Build the dependency matrix for all Txs
+	var matrix [][]bool = make([][]bool, len(txs))
+	for i := range matrix {
+		matrix[i] = make([]bool, len(txs))
+	}
+	for i, tx1 := range txs {
+		for j, tx2 := range txs {
+			matrix[i][j] = w.IsBlockedBy(tx1, tx2)
+		}
+	}
+
+	set := BlockingSet{}
+	for i, tx := range txs {
+		blockers := []Tx{}
+		deps := make(map[int]struct{})
+		recompute(matrix, i, deps)
+
+		for txIndex := range deps {
+			blockers = append(blockers, txs[txIndex])
+		}
+
+		set[tx.Hash()] = blockers
+	}
+	return set
+}
+
+func recompute(matrix [][]bool, index int, deps map[int]struct{}) {
+	row := matrix[index]
+
+	for i := 0; i < len(row); i++ {
+		if _, ok := deps[i]; ok {
+			continue
+		}
+
+		// matrix diagonal
+		if i == index {
+			deps[i] = struct{}{}
+			continue
+		}
+
+		if row[i] {
+			deps[i] = struct{}{}
+			recompute(matrix, i, deps)
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 )
@@ -22,6 +23,16 @@ type ID string
 type Tx interface {
 	Bytes() []byte
 	Hash() Hash
+}
+
+type BlockingSet map[Hash][]Tx
+
+func (set BlockingSet) String() string {
+	var buf = &bytes.Buffer{}
+	for hash, txs := range set {
+		fmt.Fprintf(buf, "tx: %s, depends_on: %v\n", hash, txs)
+	}
+	return buf.String()
 }
 
 // Block holds a list of Tx.
