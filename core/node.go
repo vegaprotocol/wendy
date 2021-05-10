@@ -7,25 +7,29 @@ import (
 
 type nodeVote struct {
 	vote  *Vote
-	from  ID
-	owner ID
+	from  *Node
+	owner *Node
 }
 
 func (nv *nodeVote) String() string {
-	return fmt.Sprintf("from=%s, vote=(%s)", nv.from, nv.vote)
+	return fmt.Sprintf("from=%s, vote=(%s)", nv.from.name, nv.vote)
 }
 
 type nodeTx struct {
 	tx   Tx
-	from ID
+	from *Node
 }
 
 func (nt *nodeTx) String() string {
-	return fmt.Sprintf("from=%s, tx=(%s)", nt.from, nt.tx)
+	return fmt.Sprintf("from=%s, tx=(%s)", nt.from.name, nt.tx)
 }
 
-type debugFn func(*Node, string) bool
+type NodeDebugFn func(*Node, string) bool
 
+// Node is used in the simulations and represents a node in the network.
+// A Node can be connected to other peers. Connections are unidirectional,
+// meaning that if NodeA is connected to NodeB, NodeB will receive messages
+// from NodeA.
 type Node struct {
 	wendy *Wendy
 	name  ID
@@ -33,8 +37,10 @@ type Node struct {
 
 	seq uint64
 
-	debug debugFn
-	cheat bool
+	debug NodeDebugFn
+
+	txs   chan nodeTx
+	votes chan nodeVote
 }
 
 func NewNode(name ID, peers ...*Node) *Node {
@@ -42,18 +48,19 @@ func NewNode(name ID, peers ...*Node) *Node {
 		wendy: New(),
 		name:  name,
 		peers: peers,
+
+		txs:   make(chan nodeTx),
+		votes: make(chan nodeVote),
 	}
+
+	go node.recvTxs()
+	go node.recvVotes()
 
 	return node
 }
 
-func (n *Node) WithDebug(fn debugFn) *Node {
+func (n *Node) WithDebug(fn NodeDebugFn) *Node {
 	n.debug = fn
-	return n
-}
-
-func (n *Node) WithCheating(v bool) *Node {
-	n.cheat = v
 	return n
 }
 
@@ -77,7 +84,7 @@ func (n *Node) nextVote(tx Tx) *Vote {
 }
 
 func (n *Node) AddTx(tx Tx) {
-	msg := &nodeTx{from: n.name, tx: tx}
+	msg := &nodeTx{from: n, tx: tx}
 	n.handleTx(msg)
 }
 
@@ -88,23 +95,45 @@ func (n *Node) log(msg string, args ...interface{}) {
 	}
 }
 
+func (n *Node) recvTxs() {
+	for {
+		msg, ok := <-n.txs
+		if !ok {
+			return
+		}
+		n.handleTx(&msg)
+	}
+}
+
+func (n *Node) recvVotes() {
+	for {
+		msg, ok := <-n.votes
+		if !ok {
+			return
+		}
+		n.handleVote(&msg)
+	}
+}
+
 func (n *Node) handleTx(msg *nodeTx) {
 	if isNew := n.wendy.AddTx(msg.tx); !isNew {
 		return
 	}
 	// broadcast to tx and myvote to peers
 	from := msg.from
-	msg.from = n.name
+	msg.from = n
 	for _, peer := range n.peers {
 		// avoid sending the tx back to the sender
-		if from == peer.name {
+		if from.name == peer.name {
 			continue
 		}
 
-		n.log("tx -> %s", peer.name)
-		peer.handleTx(msg)
+		go func(peer *Node) {
+			n.log("tx -> %s", peer.name)
+			peer.txs <- *msg
+		}(peer)
 	}
-	myVote := &nodeVote{from: n.name, vote: n.nextVote(msg.tx)}
+	myVote := &nodeVote{from: n, vote: n.nextVote(msg.tx)}
 	n.handleVote(myVote)
 }
 
@@ -114,14 +143,18 @@ func (n *Node) handleVote(msg *nodeVote) {
 	}
 
 	from := msg.from
-	msg.from = n.name
+	msg.from = n
 	for _, peer := range n.peers {
-		if from == peer.name || msg.vote.Pubkey == peer.name {
+		if from.name == peer.name || msg.vote.Pubkey == peer.name {
 			continue
 		}
 
-		n.log("vote(%s) -> %s", msg.vote.Pubkey, peer.name)
-		peer.handleVote(msg)
+		go func(peer *Node) {
+			n.log("vote(%s) -> %s", msg.vote.Pubkey, peer.name)
+			peer.votes <- *msg
+		}(peer)
 	}
+}
 
+func (n *Node) Wait() {
 }

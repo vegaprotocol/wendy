@@ -1,15 +1,17 @@
 package core
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 var debug = func(n *Node, msg string) bool {
-	return !true
-	// return strings.Contains(msg, "n1")
-	// return n.name == "n4" || n.name == "n5"
+	//return !true
+	return strings.Contains(msg, "IF:")
+	// return n.name == "n1"
 }
 
 type Network struct {
@@ -55,6 +57,13 @@ func NewNetwork(topology map[ID][]ID) *Network {
 
 func (net *Network) Node(id ID) *Node {
 	return net.nodes[id]
+}
+
+func (net *Network) Wait() {
+	for _, n := range net.nodes {
+		n.Wait()
+	}
+	time.Sleep(100 * time.Millisecond)
 }
 
 type topology map[ID][]ID
@@ -116,5 +125,6 @@ func testSimulation(t *testing.T, net *Network) {
 	assert.True(t, net.Node("n1").wendy.IsBlocked(testTx0), "n1")
 
 	net.Node("n1").AddTx(testTx0)
+	net.Wait()
 	assert.False(t, net.Node("n1").wendy.IsBlocked(testTx0), "n1")
 }
