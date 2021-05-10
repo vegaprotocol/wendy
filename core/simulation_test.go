@@ -113,9 +113,8 @@ func TestSimulation(t *testing.T) {
 }
 
 func testSimulation(t *testing.T, net *Network) {
-	tx0 := newTestTxStr("tx0", "hash0")
-	assert.True(t, net.Node("n1").wendy.IsBlocked(tx0), "n1")
+	assert.True(t, net.Node("n1").wendy.IsBlocked(testTx0), "n1")
 
-	net.Node("n1").AddTx(tx0)
-	assert.False(t, net.Node("n1").wendy.IsBlocked(tx0), "n1")
+	net.Node("n1").AddTx(testTx0)
+	assert.False(t, net.Node("n1").wendy.IsBlocked(testTx0), "n1")
 }

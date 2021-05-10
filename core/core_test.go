@@ -32,12 +32,12 @@ func (tx *testTx) String() string {
 
 // txN are used accross different tests
 var (
-	tx0 = newTestTxStr("tx0", "h0")
-	tx1 = newTestTxStr("tx1", "h1")
-	tx2 = newTestTxStr("tx2", "h2")
-	tx3 = newTestTxStr("tx3", "h3")
-	tx4 = newTestTxStr("tx4", "h4")
-	tx5 = newTestTxStr("tx5", "h5")
+	testTx0 = newTestTxStr("tx0", "h0")
+	testTx1 = newTestTxStr("tx1", "h1")
+	testTx2 = newTestTxStr("tx2", "h2")
+	testTx3 = newTestTxStr("tx3", "h3")
+	testTx4 = newTestTxStr("tx4", "h4")
+	testTx5 = newTestTxStr("tx5", "h5")
 )
 
 func TestIsBlockedBy(t *testing.T) {
@@ -47,32 +47,28 @@ func TestIsBlockedBy(t *testing.T) {
 	})
 	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
-	tx0, tx1 :=
-		newTestTxStr("tx0", "h0"),
-		newTestTxStr("tx1", "h1")
-
 	t.Run("1of4", func(t *testing.T) {
-		w.AddVote(newVote("s0", 0, tx0))
-		w.AddVote(newVote("s0", 1, tx1))
-		assert.True(t, w.IsBlockedBy(tx0, tx1), "should be blocked for HonestParties %d", w.HonestParties())
+		w.AddVote(newVote("s0", 0, testTx0))
+		w.AddVote(newVote("s0", 1, testTx1))
+		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("2of4", func(t *testing.T) {
-		w.AddVote(newVote("s1", 0, tx0))
-		w.AddVote(newVote("s1", 1, tx1))
-		assert.True(t, w.IsBlockedBy(tx0, tx1), "should be blocked for HonestParties %d", w.HonestParties())
+		w.AddVote(newVote("s1", 0, testTx0))
+		w.AddVote(newVote("s1", 1, testTx1))
+		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("3of4", func(t *testing.T) {
-		w.AddVote(newVote("s2", 0, tx0))
-		w.AddVote(newVote("s2", 1, tx1))
-		assert.False(t, w.IsBlockedBy(tx0, tx1), "should NOT be blocked for HonestParties %d", w.HonestParties())
+		w.AddVote(newVote("s2", 0, testTx0))
+		w.AddVote(newVote("s2", 1, testTx1))
+		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "should NOT be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("4of4", func(t *testing.T) {
-		w.AddVote(newVote("s2", 0, tx1)) // these are in different order
-		w.AddVote(newVote("s2", 1, tx0))
-		assert.False(t, w.IsBlockedBy(tx0, tx1), "IsBlockedBy MUST be monotone")
+		w.AddVote(newVote("s2", 0, testTx1)) // these are in different order
+		w.AddVote(newVote("s2", 1, testTx0))
+		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "IsBlockedBy MUST be monotone")
 	})
 }
 
@@ -84,16 +80,14 @@ func TestIsBlocked(t *testing.T) {
 	})
 	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
-	tx0 := newTestTxStr("tx0", "h0")
+	w.AddVote(newVote("s0", 0, testTx0))
+	require.True(t, w.IsBlocked(testTx0), "should be blocked with 1of4")
 
-	w.AddVote(newVote("s0", 0, tx0))
-	require.True(t, w.IsBlocked(tx0), "should be blocked with 1of4")
+	w.AddVote(newVote("s1", 0, testTx0))
+	require.True(t, w.IsBlocked(testTx0), "should be blocked with 2of4")
 
-	w.AddVote(newVote("s1", 0, tx0))
-	require.True(t, w.IsBlocked(tx0), "should be blocked with 2of4")
-
-	w.AddVote(newVote("s2", 0, tx0))
-	require.False(t, w.IsBlocked(tx0), "should be blocked with 3of4")
+	w.AddVote(newVote("s2", 0, testTx0))
+	require.False(t, w.IsBlocked(testTx0), "should be blocked with 3of4")
 
 	t.Run("Gapped", func(t *testing.T) {
 		tx := newTestTxStr("tx-gapped", "hash-gapped")
@@ -150,24 +144,24 @@ func TestBlockingSet(t *testing.T) {
 
 		w := newWendyFromTxsMap(
 			map[ID][]Tx{
-				"Node0": {tx1, tx2, tx3, tx4, tx5},
-				"Node1": {tx2, tx3, tx4, tx5, tx1},
-				"Node2": {tx3, tx4, tx5, tx1, tx2},
-				"Node3": {tx4, tx5, tx1, tx2, tx3},
-				"Node4": {tx5, tx1, tx2, tx3, tx4},
+				"Node0": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"Node1": {testTx2, testTx3, testTx4, testTx5, testTx1},
+				"Node2": {testTx3, testTx4, testTx5, testTx1, testTx2},
+				"Node3": {testTx4, testTx5, testTx1, testTx2, testTx3},
+				"Node4": {testTx5, testTx1, testTx2, testTx3, testTx4},
 			},
 		)
 
 		// If tx2 IsBlockedBy tx1 we say that tx1 has priority over tx2.
-		require.True(t, w.IsBlockedBy(tx2, tx1))
-		require.True(t, w.IsBlockedBy(tx3, tx2))
-		require.True(t, w.IsBlockedBy(tx4, tx3))
-		require.True(t, w.IsBlockedBy(tx1, tx4))
+		require.True(t, w.IsBlockedBy(testTx2, testTx1))
+		require.True(t, w.IsBlockedBy(testTx3, testTx2))
+		require.True(t, w.IsBlockedBy(testTx4, testTx3))
+		require.True(t, w.IsBlockedBy(testTx1, testTx4))
 
 		set := w.BlockingSet()
 
 		// all txs depends on all txs, hence a loop exists
-		allTxs := []Tx{tx1, tx2, tx3, tx4, tx5}
+		allTxs := []Tx{testTx1, testTx2, testTx3, testTx4, testTx5}
 		for _, tx := range allTxs {
 			assert.ElementsMatch(t, set[tx.Hash()], allTxs)
 		}
@@ -196,20 +190,20 @@ func TestBlockingSet(t *testing.T) {
 
 		w := newWendyFromTxsMap(
 			map[ID][]Tx{
-				"Node0": {tx1, tx2, tx3, tx4, tx5},
-				"Node1": {tx1, tx2, tx3, tx4, tx5},
-				"Node2": {tx1, tx2, tx3, tx4, tx5},
-				"Node3": {tx1, tx2, tx3, tx4, tx5},
-				"Node4": {tx1, tx2, tx3, tx4, tx5},
+				"Node0": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"Node1": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"Node2": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"Node3": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"Node4": {testTx1, testTx2, testTx3, testTx4, testTx5},
 			},
 		)
 
 		set := w.BlockingSet()
 
-		assert.ElementsMatch(t, set[tx1.Hash()], []Tx{tx1})
-		assert.ElementsMatch(t, set[tx2.Hash()], []Tx{tx1, tx2})
-		assert.ElementsMatch(t, set[tx3.Hash()], []Tx{tx1, tx2, tx3})
-		assert.ElementsMatch(t, set[tx4.Hash()], []Tx{tx1, tx2, tx3, tx4})
-		assert.ElementsMatch(t, set[tx5.Hash()], []Tx{tx1, tx2, tx3, tx4, tx5})
+		assert.ElementsMatch(t, set[testTx1.Hash()], []Tx{testTx1})
+		assert.ElementsMatch(t, set[testTx2.Hash()], []Tx{testTx1, testTx2})
+		assert.ElementsMatch(t, set[testTx3.Hash()], []Tx{testTx1, testTx2, testTx3})
+		assert.ElementsMatch(t, set[testTx4.Hash()], []Tx{testTx1, testTx2, testTx3, testTx4})
+		assert.ElementsMatch(t, set[testTx5.Hash()], []Tx{testTx1, testTx2, testTx3, testTx4, testTx5})
 	})
 }

@@ -18,12 +18,12 @@ func TestPeersVoting(t *testing.T) {
 			added   bool
 		}{
 			// given a vote, lastSeq should be x and added or not.
-			{vote: newVote(s.id, 0, tx0), lastSeq: 0, added: true},
-			{vote: newVote(s.id, 1, tx1), lastSeq: 1, added: true},
-			{vote: newVote(s.id, 2, tx2), lastSeq: 2, added: true},
-			{vote: newVote(s.id, 4, tx4), lastSeq: 2, added: true},
-			{vote: newVote(s.id, 3, tx3), lastSeq: 4, added: true},
-			{vote: newVote(s.id, 3, tx3), lastSeq: 4, added: false},
+			{vote: newVote(s.id, 0, testTx0), lastSeq: 0, added: true},
+			{vote: newVote(s.id, 1, testTx1), lastSeq: 1, added: true},
+			{vote: newVote(s.id, 2, testTx2), lastSeq: 2, added: true},
+			{vote: newVote(s.id, 4, testTx4), lastSeq: 2, added: true},
+			{vote: newVote(s.id, 3, testTx3), lastSeq: 4, added: true},
+			{vote: newVote(s.id, 3, testTx3), lastSeq: 4, added: false},
 		}
 
 		for _, test := range tests {
@@ -62,46 +62,46 @@ func TestBefore(t *testing.T) {
 	t.Run("OneCommited", func(t *testing.T) {
 		s := newTestPeer()
 		s.AddVotes(
-			newVote(s.id, 0, tx0),
-			newVote(s.id, 1, tx1),
-			newVote(s.id, 2, tx2),
-			newVote(s.id, 3, tx3),
-			newVote(s.id, 4, tx4),
+			newVote(s.id, 0, testTx0),
+			newVote(s.id, 1, testTx1),
+			newVote(s.id, 2, testTx2),
+			newVote(s.id, 3, testTx3),
+			newVote(s.id, 4, testTx4),
 		)
-		s.UpdateTxSet(tx2)
+		s.UpdateTxSet(testTx2)
 
 		// tx1 commited
-		assert.True(t, s.Before(tx2, tx0))
-		assert.True(t, s.Before(tx2, tx1))
-		assert.True(t, s.Before(tx2, tx3))
-		assert.True(t, s.Before(tx2, tx4))
+		assert.True(t, s.Before(testTx2, testTx0))
+		assert.True(t, s.Before(testTx2, testTx1))
+		assert.True(t, s.Before(testTx2, testTx3))
+		assert.True(t, s.Before(testTx2, testTx4))
 
 		// tx2 commited
-		assert.False(t, s.Before(tx0, tx2))
-		assert.False(t, s.Before(tx1, tx2))
-		assert.False(t, s.Before(tx3, tx2))
-		assert.False(t, s.Before(tx4, tx2))
+		assert.False(t, s.Before(testTx0, testTx2))
+		assert.False(t, s.Before(testTx1, testTx2))
+		assert.False(t, s.Before(testTx3, testTx2))
+		assert.False(t, s.Before(testTx4, testTx2))
 	})
 
 	t.Run("BothVoted", func(t *testing.T) {
 		s := newTestPeer()
 		s.AddVotes(
-			newVote(s.id, 0, tx0),
-			newVote(s.id, 1, tx1),
-			newVote(s.id, 2, tx2),
-			newVote(s.id, 3, tx3),
-			newVote(s.id, 4, tx4),
+			newVote(s.id, 0, testTx0),
+			newVote(s.id, 1, testTx1),
+			newVote(s.id, 2, testTx2),
+			newVote(s.id, 3, testTx3),
+			newVote(s.id, 4, testTx4),
 		)
 
-		assert.True(t, s.Before(tx0, tx1))
-		assert.True(t, s.Before(tx1, tx2))
-		assert.True(t, s.Before(tx2, tx3))
-		assert.True(t, s.Before(tx3, tx4))
+		assert.True(t, s.Before(testTx0, testTx1))
+		assert.True(t, s.Before(testTx1, testTx2))
+		assert.True(t, s.Before(testTx2, testTx3))
+		assert.True(t, s.Before(testTx3, testTx4))
 	})
 
 	t.Run("NoneSeen", func(t *testing.T) {
 		s := newTestPeer()
-		assert.False(t, s.Before(tx0, tx1))
-		assert.False(t, s.Before(tx1, tx0))
+		assert.False(t, s.Before(testTx0, testTx1))
+		assert.False(t, s.Before(testTx1, testTx0))
 	})
 }
