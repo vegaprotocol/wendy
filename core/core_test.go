@@ -183,10 +183,10 @@ func TestBlockingSet(t *testing.T) {
 		// | Node  |  0  |  1  |  2  |  3  |  4  |
 		// +-------+-----+-----+-----+-----+-----+
 		// | Node0 | Tx1 | Tx2 | Tx3 | Tx4 | Tx5 |
-		// | Node1 | Tx2 | Tx3 | Tx4 | Tx5 | Tx1 |
-		// | Node2 | Tx3 | Tx4 | Tx5 | Tx1 | Tx2 |
-		// | Node3 | Tx4 | Tx5 | Tx1 | Tx2 | Tx3 |
-		// | Node4 | Tx5 | Tx1 | Tx2 | Tx3 | Tx4 |
+		// | Node1 | Tx1 | Tx2 | Tx3 | Tx4 | Tx5 |
+		// | Node2 | Tx1 | Tx2 | Tx3 | Tx4 | Tx5 |
+		// | Node3 | Tx1 | Tx2 | Tx3 | Tx4 | Tx5 |
+		// | Node4 | Tx1 | Tx2 | Tx3 | Tx4 | Tx5 |
 		// +-------+-----+-----+-----+-----+-----+
 		//
 		// In this case, we have a loop, that tx1 has priority over tx2, which has
