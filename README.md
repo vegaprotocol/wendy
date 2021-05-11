@@ -2,6 +2,7 @@
 
 [![](https://github.com/vegaprotocol/wendy/actions/workflows/test.yml/badge.svg)](https://github.com/vegaprotocol/wendy/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/vegaprotocol/wendy/blob/main/LICENSE.md)
+[![](https://badgen.net/github/tag/vegaprotocol/wendy)](https://github.com/vegaprotocol/wendy/releases/latest)
 
 The good little fairness widget
 
