@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var newTestPeer = func() *Peer { return NewPeer("xxx") }
@@ -28,7 +29,7 @@ func TestPeersVoting(t *testing.T) {
 
 		for _, test := range tests {
 			added := s.AddVote(test.vote)
-			assert.Equal(t, test.lastSeq, s.LastSeqSeen())
+			assert.Equal(t, test.lastSeq, s.LastSeqSeen(test.vote.Label))
 			assert.Equal(t, test.added, added)
 		}
 	})
@@ -103,5 +104,20 @@ func TestBefore(t *testing.T) {
 		s := newTestPeer()
 		assert.False(t, s.Before(testTx0, testTx1))
 		assert.False(t, s.Before(testTx1, testTx0))
+	})
+}
+
+func TestBeforeAcrossDifferentBucket(t *testing.T) {
+	t.Run("Panic", func(t *testing.T) {
+		s := newTestPeer()
+		txA := newTestTxStr("tx0", "h0").withLabel("A")
+		txB := newTestTxStr("tx1", "h1").withLabel("B")
+
+		require.True(t, s.AddVote(newVote(s.id, 0, txA)))
+		require.True(t, s.AddVote(newVote(s.id, 0, txB)))
+
+		assert.Panics(t, func() {
+			s.Before(txA, txB)
+		})
 	})
 }

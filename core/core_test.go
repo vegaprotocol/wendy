@@ -13,6 +13,7 @@ var _ Tx = &testTx{}
 type testTx struct {
 	bytes []byte
 	hash  []byte
+	label string
 }
 
 func newTestTxStr(bytes, hash string) *testTx {
@@ -25,12 +26,18 @@ func (tx *testTx) Hash() Hash {
 	copy(hash[:], tx.hash)
 	return hash
 }
+func (tx *testTx) Label() string { return tx.label }
+
+func (tx *testTx) withLabel(l string) *testTx {
+	tx.label = l
+	return tx
+}
 
 func (tx *testTx) String() string {
 	return fmt.Sprintf("%s (hash:%s)", string(tx.bytes), string(tx.hash))
 }
 
-// txN are used accross different tests
+// testTx<N> are used accross different tests
 var (
 	testTx0    = newTestTxStr("tx0", "h0")
 	testTx1    = newTestTxStr("tx1", "h1")
