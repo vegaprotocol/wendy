@@ -32,12 +32,13 @@ func (tx *testTx) String() string {
 
 // txN are used accross different tests
 var (
-	testTx0 = newTestTxStr("tx0", "h0")
-	testTx1 = newTestTxStr("tx1", "h1")
-	testTx2 = newTestTxStr("tx2", "h2")
-	testTx3 = newTestTxStr("tx3", "h3")
-	testTx4 = newTestTxStr("tx4", "h4")
-	testTx5 = newTestTxStr("tx5", "h5")
+	testTx0    = newTestTxStr("tx0", "h0")
+	testTx1    = newTestTxStr("tx1", "h1")
+	testTx2    = newTestTxStr("tx2", "h2")
+	testTx3    = newTestTxStr("tx3", "h3")
+	testTx4    = newTestTxStr("tx4", "h4")
+	testTx5    = newTestTxStr("tx5", "h5")
+	allTestTxs = []Tx{testTx0, testTx1, testTx2, testTx3, testTx4, testTx5}
 )
 
 func TestIsBlockedBy(t *testing.T) {
@@ -161,9 +162,8 @@ func TestBlockingSet(t *testing.T) {
 		set := w.BlockingSet()
 
 		// all txs depends on all txs, hence a loop exists
-		allTxs := []Tx{testTx1, testTx2, testTx3, testTx4, testTx5}
-		for _, tx := range allTxs {
-			assert.ElementsMatch(t, set[tx.Hash()], allTxs)
+		for _, tx := range allTestTxs {
+			assert.ElementsMatch(t, set[tx.Hash()], allTestTxs)
 		}
 	})
 

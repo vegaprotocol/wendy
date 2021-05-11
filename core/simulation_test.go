@@ -2,6 +2,7 @@ package core
 
 import (
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -60,9 +61,6 @@ func (net *Network) Node(id ID) *Node {
 }
 
 func (net *Network) Wait() {
-	for _, n := range net.nodes {
-		n.Wait()
-	}
 	time.Sleep(100 * time.Millisecond)
 }
 
@@ -110,6 +108,17 @@ var topologies = map[string]topology{
 		"n4": {"n3"},
 		"n5": {"n3"},
 	},
+	"Pipeline": {
+		/*
+			┌────┐  ┌────┐  ┌────┐  ┌────┐
+			│ n1 ├──┤ n2 ├──┤ n3 ├──┤ n4 │
+			└────┘  └────┘  └────┘  └────┘
+		*/
+		"n1": {"n2"},
+		"n2": {"n1", "n3"},
+		"n3": {"n2", "n4"},
+		"n4": {"n3"},
+	},
 }
 
 func TestSimulation(t *testing.T) {
@@ -122,9 +131,19 @@ func TestSimulation(t *testing.T) {
 }
 
 func testSimulation(t *testing.T, net *Network) {
+	// we use the wg to sync the send/recv operations
+	// this way we can know for sure when all messaging is done
+	var wg sync.WaitGroup
+	for _, node := range net.nodes {
+		node.SendCb = func() { wg.Add(1) }
+		node.RecvCb = func() { wg.Done() }
+	}
+
 	assert.True(t, net.Node("n1").wendy.IsBlocked(testTx0), "n1")
 
-	net.Node("n1").AddTx(testTx0)
-	net.Wait()
-	assert.False(t, net.Node("n1").wendy.IsBlocked(testTx0), "n1")
+	for _, tx := range allTestTxs {
+		net.Node("n1").AddTx(tx)
+		wg.Wait()
+		assert.False(t, net.Node("n1").wendy.IsBlocked(tx), "n1")
+	}
 }

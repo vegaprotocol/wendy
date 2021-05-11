@@ -2,7 +2,12 @@ package core
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
+)
+
+var (
+	wg sync.WaitGroup
 )
 
 type nodeVote struct {
@@ -41,6 +46,9 @@ type Node struct {
 
 	txs   chan nodeTx
 	votes chan nodeVote
+
+	SendCb func() // SendCb is called before sending a msg iff not nil.
+	RecvCb func() // RecvCb is called after handling a msg iff not nil.
 }
 
 func NewNode(name ID, peers ...*Node) *Node {
@@ -102,6 +110,9 @@ func (n *Node) recvTxs() {
 			return
 		}
 		n.handleTx(&msg)
+		if fn := n.RecvCb; fn != nil {
+			fn()
+		}
 	}
 }
 
@@ -112,6 +123,9 @@ func (n *Node) recvVotes() {
 			return
 		}
 		n.handleVote(&msg)
+		if fn := n.RecvCb; fn != nil {
+			fn()
+		}
 	}
 }
 
@@ -121,13 +135,16 @@ func (n *Node) handleTx(msg *nodeTx) {
 	}
 	// broadcast to tx and myvote to peers
 	from := msg.from
-	msg.from = n
+	msg = &nodeTx{tx: msg.tx, from: n}
 	for _, peer := range n.peers {
 		// avoid sending the tx back to the sender
 		if from.name == peer.name {
 			continue
 		}
 
+		if fn := n.SendCb; fn != nil {
+			fn()
+		}
 		go func(peer *Node) {
 			n.log("tx -> %s", peer.name)
 			peer.txs <- *msg
@@ -149,12 +166,12 @@ func (n *Node) handleVote(msg *nodeVote) {
 			continue
 		}
 
+		if fn := n.SendCb; fn != nil {
+			fn()
+		}
 		go func(peer *Node) {
 			n.log("vote(%s) -> %s", msg.vote.Pubkey, peer.name)
 			peer.votes <- *msg
 		}(peer)
 	}
-}
-
-func (n *Node) Wait() {
 }
