@@ -162,8 +162,9 @@ func TestBlockingSet(t *testing.T) {
 		set := w.BlockingSet()
 
 		// all txs depends on all txs, hence a loop exists
-		for _, tx := range allTestTxs {
-			assert.ElementsMatch(t, set[tx.Hash()], allTestTxs)
+		allTxs := []Tx{testTx1, testTx2, testTx3, testTx4, testTx5}
+		for _, tx := range allTxs {
+			assert.ElementsMatch(t, set[tx.Hash()], allTxs)
 		}
 	})
 
