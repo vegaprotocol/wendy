@@ -23,6 +23,7 @@ type ID string
 type Tx interface {
 	Bytes() []byte
 	Hash() Hash
+	Label() string
 }
 
 type BlockingSet map[Hash][]Tx
@@ -48,11 +49,12 @@ type Vote struct {
 
 	Seq    uint64
 	TxHash Hash
+	Label  string
 	Time   time.Time
 }
 
 func newVote(pub ID, seq uint64, tx Tx) *Vote {
-	return &Vote{Pubkey: pub, Seq: seq, TxHash: tx.Hash(), Time: time.Now()}
+	return &Vote{Pubkey: pub, Seq: seq, TxHash: tx.Hash(), Label: tx.Label(), Time: time.Now()}
 }
 
 func (v *Vote) String() string {
