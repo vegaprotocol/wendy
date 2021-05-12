@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math/rand"
 	"strings"
 	"sync"
 	"testing"
@@ -11,7 +12,7 @@ import (
 
 var debug = func(n *Node, msg string) bool {
 	//return !true
-	return strings.Contains(msg, "IF:")
+	return strings.Contains(msg, "delay")
 	// return n.name == "n1"
 }
 
@@ -124,19 +125,23 @@ var topologies = map[string]topology{
 func TestSimulation(t *testing.T) {
 	for name, topology := range topologies {
 		t.Run(name, func(t *testing.T) {
-			net := NewNetwork(topology)
-			testSimulation(t, net)
+			t.Run("IsBlocked", func(t *testing.T) {
+				testIsBlocked(t, NewNetwork(topology))
+			})
+
+			t.Run("WithDelays", func(t *testing.T) {
+				testWithDelays(t, NewNetwork(topology))
+			})
 		})
 	}
 }
 
-func testSimulation(t *testing.T, net *Network) {
+func testIsBlocked(t *testing.T, net *Network) {
 	// we use the wg to sync the send/recv operations
 	// this way we can know for sure when all messaging is done
 	var wg sync.WaitGroup
 	for _, node := range net.nodes {
-		node.SendCb = func() { wg.Add(1) }
-		node.RecvCb = func() { wg.Done() }
+		node.Wg = &wg
 	}
 
 	assert.True(t, net.Node("n1").wendy.IsBlocked(testTx0), "n1")
@@ -146,4 +151,38 @@ func testSimulation(t *testing.T, net *Network) {
 		wg.Wait()
 		assert.False(t, net.Node("n1").wendy.IsBlocked(tx), "n1")
 	}
+}
+
+func testWithDelays(t *testing.T, net *Network) {
+	var seed int64 = 0x533D
+	rand.Seed(seed)
+
+	var wg sync.WaitGroup
+	for i := range net.nodes {
+		node := net.nodes[i]
+		node.Wg = &wg
+
+		// delay receiving messages on node4
+		node.RecvCb = func() {
+			if node.name != "n4" {
+				return
+			}
+
+			// delay up to 100ms per message (votes or txs)
+			delay := time.Duration(
+				rand.Int63n(10),
+			)
+			time.Sleep(delay * time.Millisecond)
+		}
+	}
+
+	// generate N transactions
+	for _, tx := range allTestTxs {
+		net.Node("n1").AddTx(tx)
+		wg.Wait()
+	}
+
+	assert.False(t,
+		net.Node("n1").wendy.IsBlockedBy(testTx0, testTx1),
+	)
 }

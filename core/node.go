@@ -47,6 +47,7 @@ type Node struct {
 	txs   chan nodeTx
 	votes chan nodeVote
 
+	Wg     *sync.WaitGroup
 	SendCb func() // SendCb is called before sending a msg iff not nil.
 	RecvCb func() // RecvCb is called after handling a msg iff not nil.
 }
@@ -61,8 +62,7 @@ func NewNode(name ID, peers ...*Node) *Node {
 		votes: make(chan nodeVote),
 	}
 
-	go node.recvTxs()
-	go node.recvVotes()
+	go node.recvMsgs()
 
 	return node
 }
@@ -103,32 +103,6 @@ func (n *Node) log(msg string, args ...interface{}) {
 	}
 }
 
-func (n *Node) recvTxs() {
-	for {
-		msg, ok := <-n.txs
-		if !ok {
-			return
-		}
-		n.handleTx(&msg)
-		if fn := n.RecvCb; fn != nil {
-			fn()
-		}
-	}
-}
-
-func (n *Node) recvVotes() {
-	for {
-		msg, ok := <-n.votes
-		if !ok {
-			return
-		}
-		n.handleVote(&msg)
-		if fn := n.RecvCb; fn != nil {
-			fn()
-		}
-	}
-}
-
 func (n *Node) handleTx(msg *nodeTx) {
 	if isNew := n.wendy.AddTx(msg.tx); !isNew {
 		return
@@ -142,13 +116,7 @@ func (n *Node) handleTx(msg *nodeTx) {
 			continue
 		}
 
-		if fn := n.SendCb; fn != nil {
-			fn()
-		}
-		go func(peer *Node) {
-			n.log("tx -> %s", peer.name)
-			peer.txs <- *msg
-		}(peer)
+		n.send(peer, msg)
 	}
 	myVote := &nodeVote{from: n, vote: n.nextVote(msg.tx)}
 	n.handleVote(myVote)
@@ -160,18 +128,56 @@ func (n *Node) handleVote(msg *nodeVote) {
 	}
 
 	from := msg.from
-	msg.from = n
+	msg = &nodeVote{from: n, vote: msg.vote}
 	for _, peer := range n.peers {
 		if from.name == peer.name || msg.vote.Pubkey == peer.name {
 			continue
 		}
 
+		n.send(peer, msg)
+	}
+}
+
+// send sends a message to a given peer asynchronously (inside a goroutine).
+// It increments the wg and calls SendCb if they are set.
+func (n *Node) send(peer *Node, i interface{}) {
+	if wg := n.Wg; wg != nil {
+		wg.Add(1)
+	}
+
+	go func() {
 		if fn := n.SendCb; fn != nil {
 			fn()
 		}
-		go func(peer *Node) {
-			n.log("vote(%s) -> %s", msg.vote.Pubkey, peer.name)
+
+		switch msg := i.(type) {
+		case *nodeTx:
+			peer.txs <- *msg
+		case *nodeVote:
 			peer.votes <- *msg
-		}(peer)
+		}
+	}()
+}
+
+func (n *Node) recvMsgs() {
+	var handler func()
+
+	for {
+		select {
+		case tx := <-n.txs:
+			handler = func() { n.handleTx(&tx) }
+		case vote := <-n.votes:
+			handler = func() { n.handleVote(&vote) }
+		}
+
+		if fn := n.RecvCb; fn != nil {
+			fn()
+		}
+
+		handler()
+
+		if wg := n.Wg; wg != nil {
+			wg.Done()
+		}
 	}
 }
