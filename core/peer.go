@@ -7,10 +7,9 @@ import (
 // peerBucket holds the state of a peer for a given label.
 // Peers have one bucket per label.
 type peerBucket struct {
-	votes           *list.List
-	lastSeqSeen     uint64
-	lastSeqCommited uint64
-	commitedHashes  map[Hash]struct{}
+	votes          *list.List
+	lastSeqSeen    uint64
+	commitedHashes map[Hash]struct{}
 }
 
 // newPeerBucket returns an initialized peerBucket.
