@@ -1,7 +1,7 @@
 package core
 
 import (
-	"code.vegaprotocol.io/wendy/utils/list"
+	"github.com/vegaprotocol/wendy/utils/list"
 )
 
 // peerBucket holds the state of a peer for a given label.

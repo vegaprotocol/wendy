@@ -14,8 +14,8 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 
-	"code.vegaprotocol.io/wendy/tendermint/app"
-	nm "code.vegaprotocol.io/wendy/tendermint/node"
+	"github.com/vegaprotocol/wendy/tendermint/app"
+	nm "github.com/vegaprotocol/wendy/tendermint/node"
 )
 
 func newConfig(root string) *cfg.Config {

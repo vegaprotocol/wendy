@@ -50,9 +50,9 @@ import (
 	tmtime "github.com/tendermint/tendermint/types/time"
 	"github.com/tendermint/tendermint/version"
 
-	"code.vegaprotocol.io/wendy/tendermint/mempool"
-	mempl "code.vegaprotocol.io/wendy/tendermint/mempool"
-	"code.vegaprotocol.io/wendy/tendermint/wendy"
+	"github.com/vegaprotocol/wendy/tendermint/mempool"
+	mempl "github.com/vegaprotocol/wendy/tendermint/mempool"
+	"github.com/vegaprotocol/wendy/tendermint/wendy"
 )
 
 //------------------------------------------------------------------------------

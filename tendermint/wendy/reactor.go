@@ -9,7 +9,7 @@ import (
 	"github.com/tendermint/tendermint/p2p/conn"
 	"github.com/tendermint/tendermint/types"
 
-	protowendy "code.vegaprotocol.io/wendy/proto/wendy"
+	protowendy "github.com/vegaprotocol/wendy/proto/wendy"
 )
 
 const (
