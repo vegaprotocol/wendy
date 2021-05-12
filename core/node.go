@@ -6,14 +6,9 @@ import (
 	"sync/atomic"
 )
 
-var (
-	wg sync.WaitGroup
-)
-
 type nodeVote struct {
-	vote  *Vote
-	from  *Node
-	owner *Node
+	vote *Vote
+	from *Node
 }
 
 func (nv *nodeVote) String() string {
@@ -96,10 +91,10 @@ func (n *Node) AddTx(tx Tx) {
 	n.handleTx(msg)
 }
 
-func (n *Node) log(msg string, args ...interface{}) {
+func (n *Node) Log(msg string, args ...interface{}) {
 	line := fmt.Sprintf("[%s] %s\n", n.name, fmt.Sprintf(msg, args...))
 	if n.debug(n, line) {
-		fmt.Printf(line)
+		fmt.Print(line)
 	}
 }
 
