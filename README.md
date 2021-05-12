@@ -1,8 +1,9 @@
 <img width="654" alt="w" src="https://user-images.githubusercontent.com/13255539/94933906-ee1d5b80-04c2-11eb-96f1-f65cde7ce83f.png">
 
 [![Build](https://github.com/vegaprotocol/wendy/actions/workflows/test.yml/badge.svg)](https://github.com/vegaprotocol/wendy/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/vegaprotocol/wendy/blob/main/LICENSE.md)
+[![Go Reference](https://pkg.go.dev/badge/github.com/vegaprotocol/wendy.svg)](https://pkg.go.dev/github.com/vegaprotocol/wendy)
 [![Tag](https://badgen.net/github/tag/vegaprotocol/wendy)](https://github.com/vegaprotocol/wendy/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/vegaprotocol/wendy/blob/main/LICENSE.md)
 
 The good little fairness widget
 
