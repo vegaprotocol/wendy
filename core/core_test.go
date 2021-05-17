@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/ed25519"
 	"fmt"
 	"testing"
 
@@ -48,34 +49,53 @@ var (
 	allTestTxs = []Tx{testTx0, testTx1, testTx2, testTx3, testTx4, testTx5}
 )
 
+func newRandPubkey() Pubkey {
+	pub, _, err := ed25519.GenerateKey(Rand)
+	if err != nil {
+		panic(err)
+	}
+
+	return Pubkey(pub)
+}
+
+var (
+	pub0 = newRandPubkey()
+	pub1 = newRandPubkey()
+	pub2 = newRandPubkey()
+	pub3 = newRandPubkey()
+)
+
 func TestIsBlockedBy(t *testing.T) {
 	w := New()
 	w.UpdateValidatorSet([]Validator{
-		"s0", "s1", "s2", "s3",
+		pub0.Bytes(),
+		pub1.Bytes(),
+		pub2.Bytes(),
+		pub3.Bytes(),
 	})
 	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
 	t.Run("1of4", func(t *testing.T) {
-		w.AddVote(newVote("s0", 0, testTx0))
-		w.AddVote(newVote("s0", 1, testTx1))
+		w.AddVote(newVote(pub0, 0, testTx0))
+		w.AddVote(newVote(pub0, 1, testTx1))
 		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("2of4", func(t *testing.T) {
-		w.AddVote(newVote("s1", 0, testTx0))
-		w.AddVote(newVote("s1", 1, testTx1))
+		w.AddVote(newVote(pub1, 0, testTx0))
+		w.AddVote(newVote(pub1, 1, testTx1))
 		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("3of4", func(t *testing.T) {
-		w.AddVote(newVote("s2", 0, testTx0))
-		w.AddVote(newVote("s2", 1, testTx1))
+		w.AddVote(newVote(pub2, 0, testTx0))
+		w.AddVote(newVote(pub2, 1, testTx1))
 		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "should NOT be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("4of4", func(t *testing.T) {
-		w.AddVote(newVote("s2", 0, testTx1)) // these are in different order
-		w.AddVote(newVote("s2", 1, testTx0))
+		w.AddVote(newVote(pub2, 0, testTx1)) // these are in different order
+		w.AddVote(newVote(pub2, 1, testTx0))
 		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "IsBlockedBy MUST be monotone")
 	})
 }
@@ -84,7 +104,7 @@ func TestVoteByHash(t *testing.T) {
 	var (
 		w    = New()
 		tx   = testTx0
-		vote = newVote("test", 0, tx)
+		vote = newVote(NewPubkeyFromID("0xabcd"), 0, tx)
 		hash = tx.Hash()
 	)
 
@@ -101,25 +121,25 @@ func TestIsBlocked(t *testing.T) {
 	w := New()
 
 	w.UpdateValidatorSet([]Validator{
-		"s0", "s1", "s2", "s3",
+		pub0.Bytes(), pub1.Bytes(), pub2.Bytes(), pub3.Bytes(),
 	})
 	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
-	w.AddVote(newVote("s0", 0, testTx0))
+	w.AddVote(newVote(pub0, 0, testTx0))
 	require.True(t, w.IsBlocked(testTx0), "should be blocked with 1of4")
 
-	w.AddVote(newVote("s1", 0, testTx0))
+	w.AddVote(newVote(pub1, 0, testTx0))
 	require.True(t, w.IsBlocked(testTx0), "should be blocked with 2of4")
 
-	w.AddVote(newVote("s2", 0, testTx0))
+	w.AddVote(newVote(pub2, 0, testTx0))
 	require.False(t, w.IsBlocked(testTx0), "should be blocked with 3of4")
 
 	t.Run("Gapped", func(t *testing.T) {
 		tx := newTestTxStr("tx-gapped", "hash-gapped")
 
-		w.AddVote(newVote("s0", 2, tx))
-		w.AddVote(newVote("s1", 2, tx))
-		w.AddVote(newVote("s2", 2, tx))
+		w.AddVote(newVote(pub0, 2, tx))
+		w.AddVote(newVote(pub1, 2, tx))
+		w.AddVote(newVote(pub2, 2, tx))
 		require.True(t, w.IsBlocked(tx), "should be blocked if seq is gapped")
 	})
 }
@@ -137,7 +157,7 @@ func newWendyFromTxsMap(txsMap map[ID][]Tx) *Wendy {
 		// we use the tx index as seq
 		for i, tx := range txs {
 			seq := uint64(i)
-			w.AddVote(newVote(node, seq, tx))
+			w.AddVote(newVote(NewPubkeyFromID(node), seq, tx))
 			w.AddTx(tx)
 		}
 	}
@@ -169,11 +189,11 @@ func TestBlockingSet(t *testing.T) {
 
 		w := newWendyFromTxsMap(
 			map[ID][]Tx{
-				"Node0": {testTx1, testTx2, testTx3, testTx4, testTx5},
-				"Node1": {testTx2, testTx3, testTx4, testTx5, testTx1},
-				"Node2": {testTx3, testTx4, testTx5, testTx1, testTx2},
-				"Node3": {testTx4, testTx5, testTx1, testTx2, testTx3},
-				"Node4": {testTx5, testTx1, testTx2, testTx3, testTx4},
+				"0x00": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"0x01": {testTx2, testTx3, testTx4, testTx5, testTx1},
+				"0x02": {testTx3, testTx4, testTx5, testTx1, testTx2},
+				"0x03": {testTx4, testTx5, testTx1, testTx2, testTx3},
+				"0x04": {testTx5, testTx1, testTx2, testTx3, testTx4},
 			},
 		)
 
@@ -215,11 +235,11 @@ func TestBlockingSet(t *testing.T) {
 
 		w := newWendyFromTxsMap(
 			map[ID][]Tx{
-				"Node0": {testTx1, testTx2, testTx3, testTx4, testTx5},
-				"Node1": {testTx1, testTx2, testTx3, testTx4, testTx5},
-				"Node2": {testTx1, testTx2, testTx3, testTx4, testTx5},
-				"Node3": {testTx1, testTx2, testTx3, testTx4, testTx5},
-				"Node4": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"0x00": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"0x01": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"0x02": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"0x03": {testTx1, testTx2, testTx3, testTx4, testTx5},
+				"0x04": {testTx1, testTx2, testTx3, testTx4, testTx5},
 			},
 		)
 
@@ -231,4 +251,18 @@ func TestBlockingSet(t *testing.T) {
 		assert.ElementsMatch(t, set[testTx4.Hash()], []Tx{testTx1, testTx2, testTx3, testTx4})
 		assert.ElementsMatch(t, set[testTx5.Hash()], []Tx{testTx1, testTx2, testTx3, testTx4, testTx5})
 	})
+}
+
+func TestVoteSigning(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(Rand)
+	require.NoError(t, err)
+
+	key := Pubkey(pub)
+	vote := newVote(key, 0, testTx0)
+	sv := NewSignedVote(priv, vote)
+
+	require.True(t, sv.Verify())
+
+	sv.Data.Pubkey = pub0
+	require.False(t, sv.Verify(), "verify should fails when pubkey updated")
 }

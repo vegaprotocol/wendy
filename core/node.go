@@ -12,7 +12,7 @@ type nodeVote struct {
 }
 
 func (nv *nodeVote) String() string {
-	return fmt.Sprintf("from=%s, vote=(%s)", nv.from.name, nv.vote)
+	return fmt.Sprintf("from=%s, vote=(%s)", nv.from.pub.String(), nv.vote)
 }
 
 type nodeTx struct {
@@ -21,7 +21,7 @@ type nodeTx struct {
 }
 
 func (nt *nodeTx) String() string {
-	return fmt.Sprintf("from=%s, tx=(%s)", nt.from.name, nt.tx)
+	return fmt.Sprintf("from=%s, tx=(%s)", nt.from.pub.String(), nt.tx)
 }
 
 type NodeDebugFn func(*Node, string) bool
@@ -32,7 +32,7 @@ type NodeDebugFn func(*Node, string) bool
 // from NodeA.
 type Node struct {
 	wendy *Wendy
-	name  ID
+	pub   Pubkey
 	peers []*Node
 
 	seq uint64
@@ -47,10 +47,10 @@ type Node struct {
 	RecvCb func() // RecvCb is called after handling a msg iff not nil.
 }
 
-func NewNode(name ID, peers ...*Node) *Node {
+func NewNode(pub Pubkey, peers ...*Node) *Node {
 	node := &Node{
 		wendy: New(),
-		name:  name,
+		pub:   pub,
 		peers: peers,
 
 		txs:   make(chan nodeTx),
@@ -68,7 +68,7 @@ func (n *Node) WithDebug(fn NodeDebugFn) *Node {
 }
 
 func (n *Node) AddPeer(peer *Node) {
-	if peer.name == n.name {
+	if peer.pub.String() == n.pub.String() {
 		panic("can't add myself as peer")
 	}
 
@@ -83,7 +83,7 @@ func (n *Node) AddPeers(peers ...*Node) {
 
 func (n *Node) nextVote(tx Tx) *Vote {
 	seq := atomic.AddUint64(&n.seq, 1)
-	return newVote(n.name, seq-1, tx)
+	return newVote(n.pub, seq-1, tx)
 }
 
 func (n *Node) AddTx(tx Tx) {
@@ -92,7 +92,7 @@ func (n *Node) AddTx(tx Tx) {
 }
 
 func (n *Node) Log(msg string, args ...interface{}) {
-	line := fmt.Sprintf("[%s] %s\n", n.name, fmt.Sprintf(msg, args...))
+	line := fmt.Sprintf("[%s] %s\n", n.pub.String(), fmt.Sprintf(msg, args...))
 	if n.debug(n, line) {
 		fmt.Print(line)
 	}
@@ -107,7 +107,7 @@ func (n *Node) handleTx(msg *nodeTx) {
 	msg = &nodeTx{tx: msg.tx, from: n}
 	for _, peer := range n.peers {
 		// avoid sending the tx back to the sender
-		if from.name == peer.name {
+		if from.pub.String() == peer.pub.String() {
 			continue
 		}
 
@@ -125,7 +125,7 @@ func (n *Node) handleVote(msg *nodeVote) {
 	from := msg.from
 	msg = &nodeVote{from: n, vote: msg.vote}
 	for _, peer := range n.peers {
-		if from.name == peer.name || msg.vote.Pubkey == peer.name {
+		if from.pub.String() == peer.pub.String() || msg.vote.Pubkey.String() == peer.pub.String() {
 			continue
 		}
 
