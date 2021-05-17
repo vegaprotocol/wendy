@@ -15,5 +15,5 @@
 # vendor/
 ~$Wendy.pptx
 
-# Tendermin data
-testconfig/**/data
+# Tendermint data
+tendermint/testconfig/**/data
