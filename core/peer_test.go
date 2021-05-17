@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var newTestPeer = func() *Peer { return NewPeer("xxx") }
+var newTestPeer = func() *Peer { return NewPeer(pub0) }
 
 func TestPeersVoting(t *testing.T) {
 	t.Run("AddingVotes", func(t *testing.T) {
@@ -19,12 +19,12 @@ func TestPeersVoting(t *testing.T) {
 			added   bool
 		}{
 			// given a vote, lastSeq should be x and added or not.
-			{vote: newVote(s.id, 0, testTx0), lastSeq: 0, added: true},
-			{vote: newVote(s.id, 1, testTx1), lastSeq: 1, added: true},
-			{vote: newVote(s.id, 2, testTx2), lastSeq: 2, added: true},
-			{vote: newVote(s.id, 4, testTx4), lastSeq: 2, added: true},
-			{vote: newVote(s.id, 3, testTx3), lastSeq: 4, added: true},
-			{vote: newVote(s.id, 3, testTx3), lastSeq: 4, added: false},
+			{vote: newVote(s.pub, 0, testTx0), lastSeq: 0, added: true},
+			{vote: newVote(s.pub, 1, testTx1), lastSeq: 1, added: true},
+			{vote: newVote(s.pub, 2, testTx2), lastSeq: 2, added: true},
+			{vote: newVote(s.pub, 4, testTx4), lastSeq: 2, added: true},
+			{vote: newVote(s.pub, 3, testTx3), lastSeq: 4, added: true},
+			{vote: newVote(s.pub, 3, testTx3), lastSeq: 4, added: false},
 		}
 
 		for _, test := range tests {
@@ -63,11 +63,11 @@ func TestBefore(t *testing.T) {
 	t.Run("OneCommited", func(t *testing.T) {
 		s := newTestPeer()
 		s.AddVotes(
-			newVote(s.id, 0, testTx0),
-			newVote(s.id, 1, testTx1),
-			newVote(s.id, 2, testTx2),
-			newVote(s.id, 3, testTx3),
-			newVote(s.id, 4, testTx4),
+			newVote(s.pub, 0, testTx0),
+			newVote(s.pub, 1, testTx1),
+			newVote(s.pub, 2, testTx2),
+			newVote(s.pub, 3, testTx3),
+			newVote(s.pub, 4, testTx4),
 		)
 		s.UpdateTxSet(testTx2)
 
@@ -87,11 +87,11 @@ func TestBefore(t *testing.T) {
 	t.Run("BothVoted", func(t *testing.T) {
 		s := newTestPeer()
 		s.AddVotes(
-			newVote(s.id, 0, testTx0),
-			newVote(s.id, 1, testTx1),
-			newVote(s.id, 2, testTx2),
-			newVote(s.id, 3, testTx3),
-			newVote(s.id, 4, testTx4),
+			newVote(s.pub, 0, testTx0),
+			newVote(s.pub, 1, testTx1),
+			newVote(s.pub, 2, testTx2),
+			newVote(s.pub, 3, testTx3),
+			newVote(s.pub, 4, testTx4),
 		)
 
 		assert.True(t, s.Before(testTx0, testTx1))
@@ -113,8 +113,8 @@ func TestBeforeAcrossDifferentBucket(t *testing.T) {
 		txA := newTestTxStr("tx0", "h0").withLabel("A")
 		txB := newTestTxStr("tx1", "h1").withLabel("B")
 
-		require.True(t, s.AddVote(newVote(s.id, 0, txA)))
-		require.True(t, s.AddVote(newVote(s.id, 0, txB)))
+		require.True(t, s.AddVote(newVote(s.pub, 0, txA)))
+		require.True(t, s.AddVote(newVote(s.pub, 0, txB)))
 
 		assert.Panics(t, func() {
 			s.Before(txA, txB)

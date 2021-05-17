@@ -27,14 +27,14 @@ func newPeerBucket() *peerBucket {
 // NOTE: Since the Peer never cleans up it's internal state, it always grow,
 // hence, we might need to add a persistent storage.
 type Peer struct {
-	id      ID
+	pub     Pubkey
 	buckets map[string]*peerBucket
 }
 
 // NewPeer returnsa new Peer instance.
-func NewPeer(id ID) *Peer {
+func NewPeer(pub Pubkey) *Peer {
 	return &Peer{
-		id:      id,
+		pub:     pub,
 		buckets: make(map[string]*peerBucket),
 	}
 }

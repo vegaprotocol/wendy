@@ -27,14 +27,16 @@ func NewNetwork(topology map[ID][]ID) *Network {
 	for id, peers := range topology {
 		node, ok := nodes[id]
 		if !ok {
-			node = NewNode(id).WithDebug(debug)
+			pub := NewPubkeyFromID(id)
+			node = NewNode(pub).WithDebug(debug)
 			nodes[id] = node
 		}
 
 		for _, id := range peers {
 			peer, ok := nodes[id]
 			if !ok {
-				peer = NewNode(id).WithDebug(debug)
+				pub := NewPubkeyFromID(id)
+				peer = NewNode(pub).WithDebug(debug)
 				nodes[id] = peer
 			}
 			node.AddPeer(peer)
@@ -71,54 +73,54 @@ var topologies = map[string]topology{
 	"FullyConnected": {
 		/*
 					 ┌────┐
-			   ┌─────┤ n1 ├─────┐
+			   ┌─────┤ 01 ├─────┐
 			   │     └──┬─┘     │
 			┌──┴─┐      │      ┌┴───┐
-			│ n4 ├──────┼──────┤ n2 │
+			│ 04 ├──────┼──────┤ 02 │
 			└──┬─┘      │      └┬───┘
 			   │     ┌──┴─┐     │
-			   └─────┤ n3 ├─────┘
+			   └─────┤ 03 ├─────┘
 					 └────┘
 		*/
-		"n1": {"n2", "n3", "n4"},
-		"n2": {"n1", "n3", "n4"},
-		"n3": {"n1", "n2", "n4"},
-		"n4": {"n1", "n2", "n3"},
+		"01": {"02", "03", "04"},
+		"02": {"01", "03", "04"},
+		"03": {"01", "02", "04"},
+		"04": {"01", "02", "03"},
 	},
 	"Complex": {
 		/*
 		   		   ┌────┐
-		   		   │ n1 ├──┐
+		   		   │ 01 ├──┐
 		   		   └─┬──┘  │
 		   			 │     │
 		   		   ┌─┴──┐  │
-		   		   │ n2 │  │
+		   		   │ 02 │  │
 		   		   └─┬──┘  │
 		   			 │     │
 		 ┌────┐    ┌─┴──┐  │
-		 │ n5 ├────┤ n3 ├──┘
+		 │ 05 ├────┤ 03 ├──┘
 		 └────┘    └─┬──┘
 		   			 │
 		   		   ┌─┴──┐
-		   		   │ n4 │
+		   		   │ 04 │
 		   		   └────┘
 		*/
-		"n1": {"n2", "n3"},
-		"n2": {"n1", "n3"},
-		"n3": {"n1", "n2", "n4", "n5"},
-		"n4": {"n3"},
-		"n5": {"n3"},
+		"01": {"02", "03"},
+		"02": {"01", "03"},
+		"03": {"01", "02", "04", "05"},
+		"04": {"03"},
+		"05": {"03"},
 	},
 	"Pipeline": {
 		/*
 			┌────┐  ┌────┐  ┌────┐  ┌────┐
-			│ n1 ├──┤ n2 ├──┤ n3 ├──┤ n4 │
+			│ 01 ├──┤ 02 ├──┤ 03 ├──┤ 04 │
 			└────┘  └────┘  └────┘  └────┘
 		*/
-		"n1": {"n2"},
-		"n2": {"n1", "n3"},
-		"n3": {"n2", "n4"},
-		"n4": {"n3"},
+		"01": {"02"},
+		"02": {"01", "03"},
+		"03": {"02", "04"},
+		"04": {"03"},
 	},
 }
 
@@ -144,12 +146,12 @@ func testIsBlocked(t *testing.T, net *Network) {
 		node.Wg = &wg
 	}
 
-	assert.True(t, net.Node("n1").wendy.IsBlocked(testTx0), "n1")
+	assert.True(t, net.Node("01").wendy.IsBlocked(testTx0), "01")
 
 	for _, tx := range allTestTxs {
-		net.Node("n1").AddTx(tx)
+		net.Node("01").AddTx(tx)
 		wg.Wait()
-		assert.False(t, net.Node("n1").wendy.IsBlocked(tx), "n1")
+		assert.False(t, net.Node("01").wendy.IsBlocked(tx), "01")
 	}
 }
 
@@ -162,9 +164,9 @@ func testWithDelays(t *testing.T, net *Network) {
 		node := net.nodes[i]
 		node.Wg = &wg
 
-		// delay receiving messages on node4
+		// delay receiving messages on 04
 		node.RecvCb = func() {
-			if node.name != "n4" {
+			if node.pub.String() != "04" {
 				return
 			}
 
@@ -178,11 +180,11 @@ func testWithDelays(t *testing.T, net *Network) {
 
 	// generate N transactions
 	for _, tx := range allTestTxs {
-		net.Node("n1").AddTx(tx)
+		net.Node("01").AddTx(tx)
 		wg.Wait()
 	}
 
 	assert.False(t,
-		net.Node("n1").wendy.IsBlockedBy(testTx0, testTx1),
+		net.Node("01").wendy.IsBlockedBy(testTx0, testTx1),
 	)
 }

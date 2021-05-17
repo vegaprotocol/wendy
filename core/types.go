@@ -2,6 +2,8 @@ package core
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"encoding/binary"
 	"fmt"
 	"time"
 )
@@ -41,11 +43,10 @@ type Block struct {
 	Txs []Tx
 }
 
-type Validator string
+type Validator []byte
 
 type Vote struct {
-	Pubkey ID
-	// TODO: signature
+	Pubkey Pubkey
 
 	Seq    uint64
 	TxHash Hash
@@ -53,10 +54,52 @@ type Vote struct {
 	Time   time.Time
 }
 
-func newVote(pub ID, seq uint64, tx Tx) *Vote {
-	return &Vote{Pubkey: pub, Seq: seq, TxHash: tx.Hash(), Label: tx.Label(), Time: time.Now()}
+func newVote(pub Pubkey, seq uint64, tx Tx) *Vote {
+	return &Vote{Pubkey: pub, Seq: seq, TxHash: tx.Hash(),
+		Label: tx.Label(), Time: time.Now()}
 }
 
 func (v *Vote) String() string {
 	return fmt.Sprintf("<pubkey=%s seq=%d, hash=%s>", v.Pubkey, v.Seq, v.TxHash)
+}
+
+func (v *Vote) digest() []byte {
+	buf := bytes.NewBuffer(nil)
+
+	// the following are the fields used to produce the digest.
+	for _, i := range []interface{}{
+		v.Seq,
+		v.TxHash,
+		v.Time.UnixNano(),
+	} {
+		if err := binary.Write(buf, binary.BigEndian, i); err != nil {
+			panic(err)
+		}
+	}
+
+	return buf.Bytes()
+}
+
+func (v *Vote) Key() ID {
+	return ID(v.Pubkey.String())
+}
+
+// SignedVote wraps a vote with its signature.
+type SignedVote struct {
+	Signature []byte
+	Data      *Vote
+}
+
+// NewSignedVote signs a vote and return it wrapped inside a SignedVote.
+func NewSignedVote(key ed25519.PrivateKey, v *Vote) *SignedVote {
+	return &SignedVote{
+		Signature: ed25519.Sign(key, v.digest()),
+		Data:      v,
+	}
+}
+
+// Verify verifies the signature from SignedVote given the vote's pubkey.
+func (sv *SignedVote) Verify() bool {
+	pub := ed25519.PublicKey(sv.Data.Pubkey)
+	return ed25519.Verify(pub, sv.Data.digest(), sv.Signature)
 }

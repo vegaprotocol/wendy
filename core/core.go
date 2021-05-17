@@ -41,12 +41,13 @@ func (w *Wendy) UpdateValidatorSet(vs []Validator) {
 	peers := make(map[ID]*Peer)
 	// keep all the peers we already have and create new one if not present
 	// those old peers that are not part of the new set will be discarded.
-	for _, v := range vs {
-		key := ID(v)
-		if s, ok := w.peers[key]; ok {
-			peers[key] = s
+	for _, val := range vs {
+		key := Pubkey(val)
+		id := ID(key.String())
+		if s, ok := w.peers[id]; ok {
+			peers[id] = s
 		} else {
-			peers[key] = NewPeer(key)
+			peers[id] = NewPeer(key)
 		}
 	}
 	w.peers = peers
@@ -89,11 +90,13 @@ func (w *Wendy) AddVote(v *Vote) bool {
 	w.votesMtx.Lock()
 	defer w.votesMtx.Unlock()
 
+	key := ID(v.Pubkey.String())
 	// Register the vote on the peer
-	peer, ok := w.peers[v.Pubkey]
+	peer, ok := w.peers[key]
 	if !ok {
-		peer = NewPeer(v.Pubkey)
-		w.peers[v.Pubkey] = peer
+		pub := NewPubkeyFromID(key)
+		peer = NewPeer(pub)
+		w.peers[key] = peer
 	}
 
 	// Register the vote based on its tx.Hash
