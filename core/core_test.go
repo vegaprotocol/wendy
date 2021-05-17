@@ -80,6 +80,23 @@ func TestIsBlockedBy(t *testing.T) {
 	})
 }
 
+func TestVoteByHash(t *testing.T) {
+	var (
+		w    = New()
+		tx   = testTx0
+		vote = newVote("test", 0, tx)
+		hash = tx.Hash()
+	)
+
+	assert.Nil(t, w.VoteByTxHash(hash))
+
+	w.AddVote(vote)
+	got := w.VoteByTxHash(hash)
+
+	assert.Equal(t, got, vote)
+	assert.Nil(t, w.VoteByTxHash(testTx1.Hash()))
+}
+
 func TestIsBlocked(t *testing.T) {
 	w := New()
 
