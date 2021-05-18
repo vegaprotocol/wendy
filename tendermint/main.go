@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
