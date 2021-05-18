@@ -78,7 +78,11 @@ func main() {
 		panic(err)
 	}
 
-	node.Start()
+	if err := node.Start(); err != nil {
+		logger.Error("Error starting node", "err", err)
+		os.Exit(1)
+	}
+
 	node.Wait()
 }
 

@@ -3,7 +3,6 @@ package wendy
 import (
 	"sync/atomic"
 
-	"github.com/tendermint/tendermint/libs/clist"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/conn"
@@ -24,7 +23,6 @@ type Reactor struct {
 
 	txChan chan (types.Tx)
 	seq    uint64
-	votes  *clist.CList
 }
 
 func NewReactor(id p2p.ID) *Reactor {
@@ -72,13 +70,11 @@ func (r *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			return
 		}
 
-		select {
-		case tx := <-r.txChan:
-			vote := r.newVote(tx)
-			bz := protowendy.MustMarshal(vote)
-			peer.Send(WendyChannel, bz)
-			r.logVote("Vote sent", vote, peer)
-		}
+		tx := <-r.txChan
+		vote := r.newVote(tx)
+		bz := protowendy.MustMarshal(vote)
+		peer.Send(WendyChannel, bz)
+		r.logVote("Vote sent", vote, peer)
 	}
 }
 
