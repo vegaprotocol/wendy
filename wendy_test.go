@@ -2,50 +2,20 @@ package wendy
 
 import (
 	"crypto/ed25519"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var _ Tx = &testTx{}
-
-type testTx struct {
-	bytes []byte
-	hash  []byte
-	label string
-}
-
-func newTestTxStr(bytes, hash string) *testTx {
-	return &testTx{bytes: []byte(bytes), hash: []byte(hash)}
-}
-
-func (tx *testTx) Bytes() []byte { return tx.bytes }
-func (tx *testTx) Hash() Hash {
-	var hash Hash
-	copy(hash[:], tx.hash)
-	return hash
-}
-func (tx *testTx) Label() string { return tx.label }
-
-func (tx *testTx) withLabel(l string) *testTx {
-	tx.label = l
-	return tx
-}
-
-func (tx *testTx) String() string {
-	return fmt.Sprintf("%s (hash:%s)", string(tx.bytes), string(tx.hash))
-}
-
 // testTx<N> are used accross different tests
 var (
-	testTx0    = newTestTxStr("tx0", "h0")
-	testTx1    = newTestTxStr("tx1", "h1")
-	testTx2    = newTestTxStr("tx2", "h2")
-	testTx3    = newTestTxStr("tx3", "h3")
-	testTx4    = newTestTxStr("tx4", "h4")
-	testTx5    = newTestTxStr("tx5", "h5")
+	testTx0    = NewSimpleTx("tx0", "h0")
+	testTx1    = NewSimpleTx("tx1", "h1")
+	testTx2    = NewSimpleTx("tx2", "h2")
+	testTx3    = NewSimpleTx("tx3", "h3")
+	testTx4    = NewSimpleTx("tx4", "h4")
+	testTx5    = NewSimpleTx("tx5", "h5")
 	allTestTxs = []Tx{testTx0, testTx1, testTx2, testTx3, testTx4, testTx5}
 )
 
@@ -76,26 +46,26 @@ func TestIsBlockedBy(t *testing.T) {
 	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
 	t.Run("1of4", func(t *testing.T) {
-		w.AddVote(newVote(pub0, 0, testTx0))
-		w.AddVote(newVote(pub0, 1, testTx1))
+		w.AddVote(NewVote(pub0, 0, testTx0))
+		w.AddVote(NewVote(pub0, 1, testTx1))
 		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("2of4", func(t *testing.T) {
-		w.AddVote(newVote(pub1, 0, testTx0))
-		w.AddVote(newVote(pub1, 1, testTx1))
+		w.AddVote(NewVote(pub1, 0, testTx0))
+		w.AddVote(NewVote(pub1, 1, testTx1))
 		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("3of4", func(t *testing.T) {
-		w.AddVote(newVote(pub2, 0, testTx0))
-		w.AddVote(newVote(pub2, 1, testTx1))
+		w.AddVote(NewVote(pub2, 0, testTx0))
+		w.AddVote(NewVote(pub2, 1, testTx1))
 		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "should NOT be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("4of4", func(t *testing.T) {
-		w.AddVote(newVote(pub2, 0, testTx1)) // these are in different order
-		w.AddVote(newVote(pub2, 1, testTx0))
+		w.AddVote(NewVote(pub2, 0, testTx1)) // these are in different order
+		w.AddVote(NewVote(pub2, 1, testTx0))
 		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "IsBlockedBy MUST be monotone")
 	})
 }
@@ -104,7 +74,7 @@ func TestVoteByHash(t *testing.T) {
 	var (
 		w    = New()
 		tx   = testTx0
-		vote = newVote(NewPubkeyFromID("0xabcd"), 0, tx)
+		vote = NewVote(NewPubkeyFromID("0xabcd"), 0, tx)
 		hash = tx.Hash()
 	)
 
@@ -125,21 +95,21 @@ func TestIsBlocked(t *testing.T) {
 	})
 	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
-	w.AddVote(newVote(pub0, 0, testTx0))
+	w.AddVote(NewVote(pub0, 0, testTx0))
 	require.True(t, w.IsBlocked(testTx0), "should be blocked with 1of4")
 
-	w.AddVote(newVote(pub1, 0, testTx0))
+	w.AddVote(NewVote(pub1, 0, testTx0))
 	require.True(t, w.IsBlocked(testTx0), "should be blocked with 2of4")
 
-	w.AddVote(newVote(pub2, 0, testTx0))
+	w.AddVote(NewVote(pub2, 0, testTx0))
 	require.False(t, w.IsBlocked(testTx0), "should be blocked with 3of4")
 
 	t.Run("Gapped", func(t *testing.T) {
-		tx := newTestTxStr("tx-gapped", "hash-gapped")
+		tx := NewSimpleTx("tx-gapped", "hash-gapped")
 
-		w.AddVote(newVote(pub0, 2, tx))
-		w.AddVote(newVote(pub1, 2, tx))
-		w.AddVote(newVote(pub2, 2, tx))
+		w.AddVote(NewVote(pub0, 2, tx))
+		w.AddVote(NewVote(pub1, 2, tx))
+		w.AddVote(NewVote(pub2, 2, tx))
 		require.True(t, w.IsBlocked(tx), "should be blocked if seq is gapped")
 	})
 }
@@ -157,7 +127,7 @@ func newWendyFromTxsMap(txsMap map[ID][]Tx) *Wendy {
 		// we use the tx index as seq
 		for i, tx := range txs {
 			seq := uint64(i)
-			w.AddVote(newVote(NewPubkeyFromID(node), seq, tx))
+			w.AddVote(NewVote(NewPubkeyFromID(node), seq, tx))
 			w.AddTx(tx)
 		}
 	}
@@ -295,7 +265,7 @@ func TestVoteSigning(t *testing.T) {
 	require.NoError(t, err)
 
 	key := Pubkey(pub)
-	vote := newVote(key, 0, testTx0)
+	vote := NewVote(key, 0, testTx0)
 	sv := NewSignedVote(priv, vote)
 
 	require.True(t, sv.Verify())

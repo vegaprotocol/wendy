@@ -116,7 +116,7 @@ type Vote struct {
 	Time   time.Time
 }
 
-func newVote(pub Pubkey, seq uint64, tx Tx) *Vote {
+func NewVote(pub Pubkey, seq uint64, tx Tx) *Vote {
 	return &Vote{Pubkey: pub, Seq: seq, TxHash: tx.Hash(),
 		Label: tx.Label(), Time: time.Now()}
 }

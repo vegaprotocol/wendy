@@ -22,7 +22,7 @@ func benchmarkIsBlockedBy(b *testing.B, n int) {
 	// build all the txs
 	var txs = make([]Tx, 0, n)
 	for seq := 0; seq < n; seq++ {
-		tx := newTestTxStr(
+		tx := NewSimpleTx(
 			fmt.Sprintf("tx:%d", seq),
 			fmt.Sprintf("hash:%d", seq),
 		)
@@ -32,7 +32,7 @@ func benchmarkIsBlockedBy(b *testing.B, n int) {
 	// all validators vote on every tx
 	for i, tx := range txs {
 		for _, v := range vs {
-			vote := newVote(Pubkey(v), uint64(i), tx)
+			vote := NewVote(Pubkey(v), uint64(i), tx)
 			w.AddVote(vote)
 		}
 	}

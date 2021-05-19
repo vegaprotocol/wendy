@@ -1,13 +1,15 @@
-package wendy
+package simulation
 
 import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+
+	"github.com/vegaprotocol/wendy"
 )
 
 type nodeVote struct {
-	vote *Vote
+	vote *wendy.Vote
 	from *Node
 }
 
@@ -16,7 +18,7 @@ func (nv *nodeVote) String() string {
 }
 
 type nodeTx struct {
-	tx   Tx
+	tx   wendy.Tx
 	from *Node
 }
 
@@ -31,8 +33,8 @@ type NodeDebugFn func(*Node, string) bool
 // meaning that if NodeA is connected to NodeB, NodeB will receive messages
 // from NodeA.
 type Node struct {
-	wendy *Wendy
-	pub   Pubkey
+	wendy *wendy.Wendy
+	pub   wendy.Pubkey
 	peers []*Node
 
 	seq uint64
@@ -47,9 +49,9 @@ type Node struct {
 	RecvCb func() // RecvCb is called after handling a msg iff not nil.
 }
 
-func NewNode(pub Pubkey, peers ...*Node) *Node {
+func NewNode(pub wendy.Pubkey, peers ...*Node) *Node {
 	node := &Node{
-		wendy: New(),
+		wendy: wendy.New(),
 		pub:   pub,
 		peers: peers,
 
@@ -81,12 +83,12 @@ func (n *Node) AddPeers(peers ...*Node) {
 	}
 }
 
-func (n *Node) nextVote(tx Tx) *Vote {
+func (n *Node) nextVote(tx wendy.Tx) *wendy.Vote {
 	seq := atomic.AddUint64(&n.seq, 1)
-	return newVote(n.pub, seq-1, tx)
+	return wendy.NewVote(n.pub, seq-1, tx)
 }
 
-func (n *Node) AddTx(tx Tx) {
+func (n *Node) AddTx(tx wendy.Tx) {
 	msg := &nodeTx{from: n, tx: tx}
 	n.handleTx(msg)
 }

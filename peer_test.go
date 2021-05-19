@@ -19,12 +19,12 @@ func TestPeersVoting(t *testing.T) {
 			added   bool
 		}{
 			// given a vote, lastSeq should be x and added or not.
-			{vote: newVote(s.pub, 0, testTx0), lastSeq: 0, added: true},
-			{vote: newVote(s.pub, 1, testTx1), lastSeq: 1, added: true},
-			{vote: newVote(s.pub, 2, testTx2), lastSeq: 2, added: true},
-			{vote: newVote(s.pub, 4, testTx4), lastSeq: 2, added: true},
-			{vote: newVote(s.pub, 3, testTx3), lastSeq: 4, added: true},
-			{vote: newVote(s.pub, 3, testTx3), lastSeq: 4, added: false},
+			{vote: NewVote(s.pub, 0, testTx0), lastSeq: 0, added: true},
+			{vote: NewVote(s.pub, 1, testTx1), lastSeq: 1, added: true},
+			{vote: NewVote(s.pub, 2, testTx2), lastSeq: 2, added: true},
+			{vote: NewVote(s.pub, 4, testTx4), lastSeq: 2, added: true},
+			{vote: NewVote(s.pub, 3, testTx3), lastSeq: 4, added: true},
+			{vote: NewVote(s.pub, 3, testTx3), lastSeq: 4, added: false},
 		}
 
 		for _, test := range tests {
@@ -63,11 +63,11 @@ func TestBefore(t *testing.T) {
 	t.Run("OneCommited", func(t *testing.T) {
 		s := newTestPeer()
 		s.AddVotes(
-			newVote(s.pub, 0, testTx0),
-			newVote(s.pub, 1, testTx1),
-			newVote(s.pub, 2, testTx2),
-			newVote(s.pub, 3, testTx3),
-			newVote(s.pub, 4, testTx4),
+			NewVote(s.pub, 0, testTx0),
+			NewVote(s.pub, 1, testTx1),
+			NewVote(s.pub, 2, testTx2),
+			NewVote(s.pub, 3, testTx3),
+			NewVote(s.pub, 4, testTx4),
 		)
 		s.UpdateTxSet(testTx2)
 
@@ -87,11 +87,11 @@ func TestBefore(t *testing.T) {
 	t.Run("BothVoted", func(t *testing.T) {
 		s := newTestPeer()
 		s.AddVotes(
-			newVote(s.pub, 0, testTx0),
-			newVote(s.pub, 1, testTx1),
-			newVote(s.pub, 2, testTx2),
-			newVote(s.pub, 3, testTx3),
-			newVote(s.pub, 4, testTx4),
+			NewVote(s.pub, 0, testTx0),
+			NewVote(s.pub, 1, testTx1),
+			NewVote(s.pub, 2, testTx2),
+			NewVote(s.pub, 3, testTx3),
+			NewVote(s.pub, 4, testTx4),
 		)
 
 		assert.True(t, s.Before(testTx0, testTx1))
@@ -110,11 +110,11 @@ func TestBefore(t *testing.T) {
 func TestBeforeAcrossDifferentBucket(t *testing.T) {
 	t.Run("Panic", func(t *testing.T) {
 		s := newTestPeer()
-		txA := newTestTxStr("tx0", "h0").withLabel("A")
-		txB := newTestTxStr("tx1", "h1").withLabel("B")
+		txA := NewSimpleTx("tx0", "h0").withLabel("A")
+		txB := NewSimpleTx("tx1", "h1").withLabel("B")
 
-		require.True(t, s.AddVote(newVote(s.pub, 0, txA)))
-		require.True(t, s.AddVote(newVote(s.pub, 0, txB)))
+		require.True(t, s.AddVote(NewVote(s.pub, 0, txA)))
+		require.True(t, s.AddVote(NewVote(s.pub, 0, txB)))
 
 		assert.Panics(t, func() {
 			s.Before(txA, txB)
