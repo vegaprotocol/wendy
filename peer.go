@@ -1,4 +1,4 @@
-package core
+package wendy
 
 import (
 	"github.com/vegaprotocol/wendy/utils/list"

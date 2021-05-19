@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
@@ -77,7 +78,11 @@ func main() {
 		panic(err)
 	}
 
-	node.Start()
+	if err := node.Start(); err != nil {
+		logger.Error("Error starting node", "err", err)
+		os.Exit(1)
+	}
+
 	node.Wait()
 }
 
