@@ -251,6 +251,43 @@ func TestBlockingSet(t *testing.T) {
 		assert.ElementsMatch(t, set[testTx4.Hash()], []Tx{testTx1, testTx2, testTx3, testTx4})
 		assert.ElementsMatch(t, set[testTx5.Hash()], []Tx{testTx1, testTx2, testTx3, testTx4, testTx5})
 	})
+
+	t.Run("NewBlock", func(t *testing.T) {
+		set := BlockingSet{
+			testTx0.Hash(): []Tx{testTx0},
+			testTx1.Hash(): []Tx{testTx1, testTx0},
+			testTx4.Hash(): []Tx{testTx4, testTx3},
+		}
+		allTxs := []Tx{testTx0, testTx1, testTx3, testTx4}
+
+		block := set.NewBlock()
+		assert.ElementsMatch(t, block.Txs, allTxs)
+
+		t.Run("WithTxLimit", func(t *testing.T) {
+			block := set.NewBlockWithOptions(
+				NewBlockOptions{
+					TxLimit: 3,
+				},
+			)
+
+			assert.Len(t, block.Txs, 3)
+			assert.Subset(t, allTxs, block.Txs, "Block Txs should be a subset of allTxs")
+		})
+
+		t.Run("WithMaxBlockSize", func(t *testing.T) {
+			block := set.NewBlockWithOptions(
+				NewBlockOptions{
+					MaxBlockSize: 10,
+				},
+			)
+
+			var size int
+			for _, tx := range block.Txs {
+				size += len(tx.Bytes())
+			}
+			assert.LessOrEqual(t, size, 10)
+		})
+	})
 }
 
 func TestVoteSigning(t *testing.T) {
