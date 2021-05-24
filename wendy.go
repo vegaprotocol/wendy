@@ -160,6 +160,15 @@ func (w *Wendy) IsBlocked(tx Tx) bool {
 	})
 }
 
+// AddBlock will clean all the added txs (via AddTx).
+// Once a block has been added, all the txs will be removed from Wendy, thus
+// new blocks (NewBlock) won't return them anymore.
+func (w *Wendy) AddBlock(block *Block) {
+	for _, tx := range block.Txs {
+		w.txs.RemoveByHash(tx.Hash())
+	}
+}
+
 // NewBlockOptions are options that control the behaviour of NewBlock method.
 type NewBlockOptions struct {
 	// TxLimit limits the maximum number of Txs that a produced block might
@@ -173,6 +182,9 @@ type NewBlockOptions struct {
 	// function returns.
 	// NewBlock will not try to optimize for space.
 	MaxBlockSize int
+
+	// AddBlock flag determines if the newly created block should be also added.
+	AddBlock bool
 }
 
 // NewBlock produces a potential block given the computed BlockingSet.
@@ -220,9 +232,15 @@ func (w *Wendy) NewBlockWithOptions(opts NewBlockOptions) *Block {
 		}
 	}
 
-	return &Block{
+	block := &Block{
 		Txs: txs.List(),
 	}
+
+	if opts.AddBlock {
+		w.AddBlock(block)
+	}
+
+	return block
 }
 
 // BlockingSet returns a list of blocking Txs for all the currently seen Txs.

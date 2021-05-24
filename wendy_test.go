@@ -230,46 +230,63 @@ func TestBlockingSet(t *testing.T) {
 		assert.ElementsMatch(t, set[testTx4.Hash()], []Tx{testTx1, testTx2, testTx3, testTx4})
 		assert.ElementsMatch(t, set[testTx5.Hash()], []Tx{testTx1, testTx2, testTx3, testTx4, testTx5})
 	})
+}
 
-	t.Run("NewBlock", func(t *testing.T) {
-		allTxs := []Tx{testTx0, testTx1, testTx2, testTx3, testTx4}
-		w := newWendyFromTxsMap(
-			map[ID][]Tx{
-				"0x00": allTxs,
+func TestNewBlock(t *testing.T) {
+	allTxs := []Tx{testTx0, testTx1, testTx2, testTx3, testTx4}
+	w := newWendyFromTxsMap(
+		map[ID][]Tx{
+			"0x00": allTxs,
+		},
+	)
+
+	block := w.NewBlock()
+	assert.Equal(t, block.Txs, allTxs)
+
+	t.Run("WithTxLimit", func(t *testing.T) {
+		block := w.NewBlockWithOptions(
+			NewBlockOptions{
+				TxLimit: 3,
 			},
 		)
 
-		block := w.NewBlock()
-		assert.Equal(t, block.Txs, allTxs)
-
-		t.Run("WithTxLimit", func(t *testing.T) {
-			block := w.NewBlockWithOptions(
-				NewBlockOptions{
-					TxLimit: 3,
-				},
-			)
-
-			assert.Len(t, block.Txs, 3)
-			assert.Subset(t, allTxs, block.Txs, "Block Txs should be a subset of allTxs")
-		})
-
-		t.Run("WithMaxBlockSize", func(t *testing.T) {
-			block := w.NewBlockWithOptions(
-				NewBlockOptions{
-					MaxBlockSize: 10,
-				},
-			)
-
-			var size int
-			for _, tx := range block.Txs {
-				size += len(tx.Bytes())
-			}
-			assert.LessOrEqual(t, size, 10)
-		})
+		assert.Len(t, block.Txs, 3)
+		assert.Subset(t, allTxs, block.Txs, "Block Txs should be a subset of allTxs")
 	})
 
-	t.Run("NewBlockAndUpdate", func(t *testing.T) {
+	t.Run("WithMaxBlockSize", func(t *testing.T) {
+		block := w.NewBlockWithOptions(
+			NewBlockOptions{
+				MaxBlockSize: 10,
+			},
+		)
+
+		var size int
+		for _, tx := range block.Txs {
+			size += len(tx.Bytes())
+		}
+		assert.LessOrEqual(t, size, 10)
 	})
+}
+
+func TestAddBlock(t *testing.T) {
+	allTxs := []Tx{testTx0, testTx1, testTx2, testTx3, testTx4}
+	w := newWendyFromTxsMap(
+		map[ID][]Tx{
+			"0x00": allTxs,
+		},
+	)
+
+	// a new block is added with these txs, thus they should NOT be in the
+	// NewBlock()
+	block := &Block{
+		Txs: []Tx{testTx0, testTx4},
+	}
+	w.AddBlock(block)
+
+	newBlock := w.NewBlock()
+	expectedTxs := []Tx{testTx1, testTx2, testTx3}
+	require.Equal(t, expectedTxs, newBlock.Txs)
 }
 
 func TestVoteSigning(t *testing.T) {
