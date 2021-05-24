@@ -2,6 +2,7 @@ package wendy
 
 import (
 	"crypto/ed25519"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -123,11 +124,20 @@ func newWendyFromTxsMap(txsMap map[ID][]Tx) *Wendy {
 	}
 	w.UpdateValidatorSet(nodes)
 
-	for node, txs := range txsMap {
+	// traverse the txsMaps in order to have determinism over tests.
+	var keys sort.StringSlice = make([]string, 0, len(txsMap))
+	for key := range txsMap {
+		keys = append(keys, string(key))
+	}
+	sort.Sort(keys)
+
+	for _, node := range keys {
+		nodeId := ID(node)
+		txs := txsMap[nodeId]
 		// we use the tx index as seq
 		for i, tx := range txs {
 			seq := uint64(i)
-			w.AddVote(NewVote(NewPubkeyFromID(node), seq, tx))
+			w.AddVote(NewVote(NewPubkeyFromID(nodeId), seq, tx))
 			w.AddTx(tx)
 		}
 	}
@@ -174,7 +184,6 @@ func TestBlockingSet(t *testing.T) {
 		require.True(t, w.IsBlockedBy(testTx1, testTx4))
 
 		set := w.BlockingSet()
-
 		// all txs depends on all txs, hence a loop exists
 		allTxs := []Tx{testTx1, testTx2, testTx3, testTx4, testTx5}
 		for _, tx := range allTxs {
@@ -223,18 +232,18 @@ func TestBlockingSet(t *testing.T) {
 	})
 
 	t.Run("NewBlock", func(t *testing.T) {
-		set := BlockingSet{
-			testTx0.Hash(): []Tx{testTx0},
-			testTx1.Hash(): []Tx{testTx1, testTx0},
-			testTx4.Hash(): []Tx{testTx4, testTx3},
-		}
-		allTxs := []Tx{testTx0, testTx1, testTx3, testTx4}
+		allTxs := []Tx{testTx0, testTx1, testTx2, testTx3, testTx4}
+		w := newWendyFromTxsMap(
+			map[ID][]Tx{
+				"0x00": allTxs,
+			},
+		)
 
-		block := set.NewBlock()
-		assert.ElementsMatch(t, block.Txs, allTxs)
+		block := w.NewBlock()
+		assert.Equal(t, block.Txs, allTxs)
 
 		t.Run("WithTxLimit", func(t *testing.T) {
-			block := set.NewBlockWithOptions(
+			block := w.NewBlockWithOptions(
 				NewBlockOptions{
 					TxLimit: 3,
 				},
@@ -245,7 +254,7 @@ func TestBlockingSet(t *testing.T) {
 		})
 
 		t.Run("WithMaxBlockSize", func(t *testing.T) {
-			block := set.NewBlockWithOptions(
+			block := w.NewBlockWithOptions(
 				NewBlockOptions{
 					MaxBlockSize: 10,
 				},
@@ -257,6 +266,9 @@ func TestBlockingSet(t *testing.T) {
 			}
 			assert.LessOrEqual(t, size, 10)
 		})
+	})
+
+	t.Run("NewBlockAndUpdate", func(t *testing.T) {
 	})
 }
 

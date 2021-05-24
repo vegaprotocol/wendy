@@ -2,6 +2,7 @@ package wendy
 
 import (
 	"math"
+	"sort"
 	"sync"
 )
 
@@ -10,7 +11,7 @@ type Wendy struct {
 	quorum     int // quorum gets updated every time the validator set is updated.
 
 	txsMtx sync.RWMutex
-	txs    map[Hash]Tx
+	txs    *Txs
 
 	votesMtx sync.RWMutex
 	votes    map[Hash]*Vote
@@ -19,7 +20,7 @@ type Wendy struct {
 
 func New() *Wendy {
 	return &Wendy{
-		txs:   make(map[Hash]Tx),
+		txs:   NewTxs(),
 		votes: make(map[Hash]*Vote),
 		peers: make(map[ID]*Peer),
 	}
@@ -74,12 +75,7 @@ func (w *Wendy) AddTx(tx Tx) bool {
 	w.txsMtx.Lock()
 	defer w.txsMtx.Unlock()
 
-	hash := tx.Hash()
-	if _, ok := w.txs[hash]; ok {
-		return false
-	}
-	w.txs[hash] = tx
-	return true
+	return w.txs.Push(tx)
 }
 
 // AddVote adds a vote to the list of votes.
@@ -164,23 +160,81 @@ func (w *Wendy) IsBlocked(tx Tx) bool {
 	})
 }
 
-// BlockingSet should be invoked on every new{Block, Vote or Tx} and returns a
-// list of blocking Txs for all the currently seen Txs.
-func (w *Wendy) BlockingSet() BlockingSet {
-	// Copy all tx from the local map to an array
-	var txs []Tx = make([]Tx, 0, len(w.txs))
+// NewBlockOptions are options that control the behaviour of NewBlock method.
+type NewBlockOptions struct {
+	// TxLimit limits the maximum number of Txs that a produced block might
+	// contain.
+	TxLimit int
+
+	// MaxBlockSize limits the maximum size of a block.
+	// MaxBlockSize is set in bytes and is computed as the sum of all
+	// `len(tx.Bytes())`.
+	// If a tx makes exceed the BlockSize, it is removed from the block and the
+	// function returns.
+	// NewBlock will not try to optimize for space.
+	MaxBlockSize int
+}
+
+// NewBlock produces a potential block given the computed BlockingSet.
+// The new block will contain a set of Txs that need to go all together in the
+// same block.
+func (w *Wendy) NewBlock() *Block {
+	return w.NewBlockWithOptions(
+		NewBlockOptions{},
+	)
+}
+
+// NewBlockWithOptions produces a potential block given the computed
+// BlockingSet and a set of options.
+// The new block will contain a set of Txs that need to go all
+// together in the same block.
+func (w *Wendy) NewBlockWithOptions(opts NewBlockOptions) *Block {
 	w.txsMtx.RLock()
-	for _, tx := range w.txs {
-		txs = append(txs, tx)
+	defer w.txsMtx.RUnlock()
+
+	var (
+		// these are used to keep track of the different limits
+		size int
+	)
+
+	txs := NewTxs()
+	set := w.BlockingSet()
+
+	for _, tx := range w.txs.List() {
+		list := set[tx.Hash()]
+		for _, tx := range list {
+			if limit := opts.TxLimit; limit > 0 {
+				if len(txs.List()) == limit {
+					break
+				}
+			}
+
+			if max := opts.MaxBlockSize; max > 0 {
+				size += len(tx.Bytes())
+				if size > max {
+					break
+				}
+			}
+
+			txs.Push(tx)
+		}
 	}
-	w.txsMtx.RUnlock()
+
+	return &Block{
+		Txs: txs.List(),
+	}
+}
+
+// BlockingSet returns a list of blocking Txs for all the currently seen Txs.
+func (w *Wendy) BlockingSet() BlockingSet {
+	txs := w.txs.List()
 
 	// Build the dependency matrix for all Txs
 	var matrix [][]bool = make([][]bool, len(txs))
 	for i := range matrix {
 		matrix[i] = make([]bool, len(txs))
 	}
-	for i, tx1 := range txs {
+	for i, tx1 := range w.txs.List() {
 		for j, tx2 := range txs {
 			matrix[i][j] = w.IsBlockedBy(tx1, tx2)
 		}
@@ -192,7 +246,13 @@ func (w *Wendy) BlockingSet() BlockingSet {
 		deps := make(map[int]struct{})
 		recompute(matrix, i, deps)
 
-		for txIndex := range deps {
+		var keys sort.IntSlice = make([]int, 0, len(deps))
+		for i := range deps {
+			keys = append(keys, i)
+		}
+		sort.Sort(keys)
+
+		for txIndex := range keys {
 			blockers = append(blockers, txs[txIndex])
 		}
 
