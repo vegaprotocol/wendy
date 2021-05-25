@@ -48,12 +48,16 @@ type Validator []byte
 type Vote struct {
 	Pubkey Pubkey
 
-	Seq    uint64
-	TxHash Hash
-	Label  string
-	Time   time.Time
+	Label string
+
+	// the following fields are used to produce the digest
+	Seq      uint64
+	TxHash   Hash
+	Time     time.Time
+	PrevHash Hash
 }
 
+// NewVote returns a new Vote
 func NewVote(pub Pubkey, seq uint64, tx Tx) *Vote {
 	return &Vote{Pubkey: pub, Seq: seq, TxHash: tx.Hash(),
 		Label: tx.Label(), Time: time.Now()}
@@ -61,6 +65,12 @@ func NewVote(pub Pubkey, seq uint64, tx Tx) *Vote {
 
 func (v *Vote) String() string {
 	return fmt.Sprintf("<pubkey=%s seq=%d, hash=%s>", v.Pubkey, v.Seq, v.TxHash)
+}
+
+// WithPrevHash returns an updated Vote with hash set as .PrevHash.
+func (v *Vote) WithPrevHash(hash Hash) *Vote {
+	v.PrevHash = hash
+	return v
 }
 
 func (v *Vote) digest() []byte {
@@ -71,6 +81,7 @@ func (v *Vote) digest() []byte {
 		v.Seq,
 		v.TxHash,
 		v.Time.UnixNano(),
+		v.PrevHash,
 	} {
 		// according to buf.Buffer docs, it will never return an error
 		// we should catch this in case of a change in their promise.
@@ -80,6 +91,12 @@ func (v *Vote) digest() []byte {
 	}
 
 	return buf.Bytes()
+}
+
+// Hash returns the sha256 hash of the vote's digest, which is the same digest
+// used for signing.
+func (v *Vote) Hash() Hash {
+	return Checksum(v.digest())
 }
 
 func (v *Vote) Key() ID {

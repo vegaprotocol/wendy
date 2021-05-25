@@ -9,33 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testTx<N> are used accross different tests
-var (
-	testTx0    = NewSimpleTx("tx0", "h0")
-	testTx1    = NewSimpleTx("tx1", "h1")
-	testTx2    = NewSimpleTx("tx2", "h2")
-	testTx3    = NewSimpleTx("tx3", "h3")
-	testTx4    = NewSimpleTx("tx4", "h4")
-	testTx5    = NewSimpleTx("tx5", "h5")
-	allTestTxs = []Tx{testTx0, testTx1, testTx2, testTx3, testTx4, testTx5}
-)
-
-func newRandPubkey() Pubkey {
-	pub, _, err := ed25519.GenerateKey(Rand)
-	if err != nil {
-		panic(err)
-	}
-
-	return Pubkey(pub)
-}
-
-var (
-	pub0 = newRandPubkey()
-	pub1 = newRandPubkey()
-	pub2 = newRandPubkey()
-	pub3 = newRandPubkey()
-)
-
 func TestIsBlockedBy(t *testing.T) {
 	w := New()
 	w.UpdateValidatorSet([]Validator{
@@ -47,26 +20,46 @@ func TestIsBlockedBy(t *testing.T) {
 	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
 	t.Run("1of4", func(t *testing.T) {
-		w.AddVote(NewVote(pub0, 0, testTx0))
-		w.AddVote(NewVote(pub0, 1, testTx1))
+		var (
+			vote0 = NewVote(pub0, 0, testTx0)
+			vote1 = NewVote(pub0, 1, testTx1).WithPrevHash(vote0.Hash())
+		)
+
+		w.AddVote(vote0)
+		w.AddVote(vote1)
 		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("2of4", func(t *testing.T) {
-		w.AddVote(NewVote(pub1, 0, testTx0))
-		w.AddVote(NewVote(pub1, 1, testTx1))
+		var (
+			vote0 = NewVote(pub1, 0, testTx0)
+			vote1 = NewVote(pub1, 1, testTx1).WithPrevHash(vote0.Hash())
+		)
+
+		w.AddVote(vote0)
+		w.AddVote(vote1)
 		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("3of4", func(t *testing.T) {
-		w.AddVote(NewVote(pub2, 0, testTx0))
-		w.AddVote(NewVote(pub2, 1, testTx1))
+		var (
+			vote0 = NewVote(pub2, 0, testTx0)
+			vote1 = NewVote(pub2, 1, testTx1).WithPrevHash(vote0.Hash())
+		)
+
+		w.AddVote(vote0)
+		w.AddVote(vote1)
 		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "should NOT be blocked for HonestParties %d", w.HonestParties())
 	})
 
 	t.Run("4of4", func(t *testing.T) {
-		w.AddVote(NewVote(pub2, 0, testTx1)) // these are in different order
-		w.AddVote(NewVote(pub2, 1, testTx0))
+		var (
+			vote0 = NewVote(pub2, 0, testTx1) // these are in different order
+			vote1 = NewVote(pub2, 1, testTx0).WithPrevHash(vote0.Hash())
+		)
+
+		w.AddVote(vote0)
+		w.AddVote(vote1)
 		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "IsBlockedBy MUST be monotone")
 	})
 }
@@ -135,9 +128,19 @@ func newWendyFromTxsMap(txsMap map[ID][]Tx) *Wendy {
 		nodeId := ID(node)
 		txs := txsMap[nodeId]
 		// we use the tx index as seq
+
+		var lastAddedVote *Vote
 		for i, tx := range txs {
 			seq := uint64(i)
-			w.AddVote(NewVote(NewPubkeyFromID(nodeId), seq, tx))
+			vote := NewVote(NewPubkeyFromID(nodeId), seq, tx)
+
+			// since votes need to be linked by its hashes, we'll do it here.
+			if lastAddedVote != nil {
+				vote.WithPrevHash(lastAddedVote.Hash())
+			}
+			w.AddVote(vote)
+			lastAddedVote = vote
+
 			w.AddTx(tx)
 		}
 	}

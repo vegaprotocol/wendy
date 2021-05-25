@@ -167,6 +167,8 @@ func (w *Wendy) AddBlock(block *Block) {
 	for _, tx := range block.Txs {
 		w.txs.RemoveByHash(tx.Hash())
 	}
+
+	// TODO: call updatetxset on peers and test it
 }
 
 // NewBlockOptions are options that control the behaviour of NewBlock method.

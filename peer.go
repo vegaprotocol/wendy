@@ -1,6 +1,8 @@
 package wendy
 
 import (
+	"log"
+
 	"github.com/vegaprotocol/wendy/utils/list"
 )
 
@@ -41,26 +43,27 @@ func NewPeer(pub Pubkey) *Peer {
 
 // bucket returns the peerBucket corresponding to a given label.
 // A new peerBucket is created if it does not exist.
-func (r *Peer) bucket(label string) *peerBucket {
-	b, ok := r.buckets[label]
+func (p *Peer) bucket(label string) *peerBucket {
+	b, ok := p.buckets[label]
 	if !ok {
 		b = newPeerBucket()
-		r.buckets[label] = b
+		p.buckets[label] = b
 	}
 	return b
 }
 
 // LastSeqSeen returns the last higher consecutive Seq number registered by a vote.
-func (r *Peer) LastSeqSeen(label string) uint64 { return r.bucket(label).lastSeqSeen }
+func (p *Peer) LastSeqSeen(label string) uint64 { return p.bucket(label).lastSeqSeen }
 
 // AddVote adds a vote to the vote list.
-// Votes are inserted in descendent order by Seq (higher sequence on the fron,
-// lower on the back).
 // It returns true if the vote hasn't been added before, otherwise, the vote is
 // not added and false is returned.
-func (r *Peer) AddVote(v *Vote) bool {
-	bucket := r.bucket(v.Label)
+func (p *Peer) _AddVote(v *Vote) bool {
+	bucket := p.bucket(v.Label)
 
+	// Votes are inserted in descendent order by Seq (higher sequence number on the front,
+	// lower on the back), this look like:
+	// [seqN, seqN-1, seqN-2, ... seq0]
 	item := bucket.votes.First(func(e *list.Element) bool {
 		return e.Value.(*Vote).Seq <= v.Seq
 	})
@@ -87,11 +90,56 @@ func (r *Peer) AddVote(v *Vote) bool {
 	return true
 }
 
+func (p *Peer) AddVote(v *Vote) bool {
+	bucket := p.bucket(v.Label)
+
+	// Votes are inserted in descendent order by Seq (higher sequence number on the front,
+	// lower on the back), this look like:
+	// [seqN, seqN-1, seqN-2, ... seq0]
+	item := bucket.votes.First(func(e *list.Element) bool {
+		return e.Value.(*Vote).Seq <= v.Seq
+	})
+
+	// found a vote with equal or higher sequence number
+	if item != nil {
+		prev := item.Value.(*Vote)
+
+		// duplicated seq number
+		if prev.Seq == v.Seq {
+			return false
+		}
+
+		// verify hash links iff seq numbers are contiguous.
+		// if there is a gap (.Seq are apart for more than 1) between v and
+		// prev, we delay hash verification
+		if (v.Seq == prev.Seq+1) && v.PrevHash != prev.Hash() {
+			// TODO: Use an injected logger?
+			log.Printf("v.PrevHash does not match prev.Hash")
+			panic("XXX")
+			return false
+		}
+
+		item = bucket.votes.InsertBefore(v, item)
+	} else {
+		// no votes with higher Sequence number.
+		item = bucket.votes.PushFront(v)
+	}
+
+	// update lastSeqSeen to the higher number before a gap is found.
+	for e := item; e != nil; e = e.Prev() {
+		if v := e.Value.(*Vote).Seq; v == bucket.lastSeqSeen+1 {
+			bucket.lastSeqSeen++
+		}
+	}
+
+	return true
+}
+
 // AddVotes is a helper of AddVote to add more than one vote on a single call,
 // it ignores the return value.
-func (r *Peer) AddVotes(vs ...*Vote) {
+func (p *Peer) AddVotes(vs ...*Vote) {
 	for _, v := range vs {
-		r.AddVote(v)
+		p.AddVote(v)
 	}
 }
 
@@ -104,12 +152,12 @@ func elementByHash(hash Hash) list.FilterFunc {
 // Before returns true if tx1 has a lower sequence number than tx2.
 // If tx1 and/or tx2 are not seen, Before returns false.
 // Txs MUST belong to the same Label() otherwise Before will panic.
-func (r *Peer) Before(tx1, tx2 Tx) bool {
+func (p *Peer) Before(tx1, tx2 Tx) bool {
 	if tx1.Label() != tx2.Label() {
 		panic("labels can't be different")
 	}
 
-	bucket := r.bucket(tx1.Label())
+	bucket := p.bucket(tx1.Label())
 	hash1, hash2 := tx1.Hash(), tx2.Hash()
 
 	_, c1 := bucket.commitedHashes[hash1]
@@ -148,8 +196,8 @@ func (r *Peer) Before(tx1, tx2 Tx) bool {
 
 // Seen returns whether a tx has been voted for or not.
 // A Tx considered as seen iff there are no gaps befre the votes's seq number.
-func (r *Peer) Seen(tx Tx) bool {
-	bucket := r.bucket(tx.Label())
+func (p *Peer) Seen(tx Tx) bool {
+	bucket := p.bucket(tx.Label())
 	hash := tx.Hash()
 	item := bucket.votes.First(elementByHash(hash))
 	if item == nil {
@@ -162,8 +210,8 @@ func (r *Peer) Seen(tx Tx) bool {
 // UpdateTxSet will remove from its internal state all the references to a
 // corresponging tx present in the txs argument.
 // updateTxSet should be called when a new block is commited.
-func (r *Peer) UpdateTxSet(txs ...Tx) {
+func (p *Peer) UpdateTxSet(txs ...Tx) {
 	for _, tx := range txs {
-		r.bucket(tx.Label()).commitedHashes[tx.Hash()] = struct{}{}
+		p.bucket(tx.Label()).commitedHashes[tx.Hash()] = struct{}{}
 	}
 }

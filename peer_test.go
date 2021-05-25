@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var newTestPeer = func() *Peer { return NewPeer(pub0) }
-
 func TestPeersVoting(t *testing.T) {
 	t.Run("AddingVotes", func(t *testing.T) {
 		s := newTestPeer()
@@ -19,12 +17,12 @@ func TestPeersVoting(t *testing.T) {
 			added   bool
 		}{
 			// given a vote, lastSeq should be x and added or not.
-			{vote: NewVote(s.pub, 0, testTx0), lastSeq: 0, added: true},
-			{vote: NewVote(s.pub, 1, testTx1), lastSeq: 1, added: true},
-			{vote: NewVote(s.pub, 2, testTx2), lastSeq: 2, added: true},
-			{vote: NewVote(s.pub, 4, testTx4), lastSeq: 2, added: true},
-			{vote: NewVote(s.pub, 3, testTx3), lastSeq: 4, added: true},
-			{vote: NewVote(s.pub, 3, testTx3), lastSeq: 4, added: false},
+			{vote: testVote0, lastSeq: 0, added: true},
+			{vote: testVote1, lastSeq: 1, added: true},
+			{vote: testVote2, lastSeq: 2, added: true},
+			{vote: testVote4, lastSeq: 2, added: true},
+			{vote: testVote3, lastSeq: 4, added: true},
+			{vote: testVote3, lastSeq: 4, added: false},
 		}
 
 		for _, test := range tests {
@@ -62,13 +60,7 @@ func TestBefore(t *testing.T) {
 
 	t.Run("OneCommited", func(t *testing.T) {
 		s := newTestPeer()
-		s.AddVotes(
-			NewVote(s.pub, 0, testTx0),
-			NewVote(s.pub, 1, testTx1),
-			NewVote(s.pub, 2, testTx2),
-			NewVote(s.pub, 3, testTx3),
-			NewVote(s.pub, 4, testTx4),
-		)
+		s.AddVotes(testVote0, testVote1, testVote2, testVote3, testVote4)
 		s.UpdateTxSet(testTx2)
 
 		// tx1 commited
@@ -86,13 +78,7 @@ func TestBefore(t *testing.T) {
 
 	t.Run("BothVoted", func(t *testing.T) {
 		s := newTestPeer()
-		s.AddVotes(
-			NewVote(s.pub, 0, testTx0),
-			NewVote(s.pub, 1, testTx1),
-			NewVote(s.pub, 2, testTx2),
-			NewVote(s.pub, 3, testTx3),
-			NewVote(s.pub, 4, testTx4),
-		)
+		s.AddVotes(testVote0, testVote1, testVote2, testVote3, testVote4)
 
 		assert.True(t, s.Before(testTx0, testTx1))
 		assert.True(t, s.Before(testTx1, testTx2))
