@@ -82,7 +82,7 @@ func (w *Wendy) AddTx(tx Tx) bool {
 // Votes are positioned given it's sequence number.
 // AddVote returns alse if the vote was already added.
 // NOTE: This function is safe for concurrent access.
-func (w *Wendy) AddVote(v *Vote) bool {
+func (w *Wendy) AddVote(v *Vote) (bool, error) {
 	w.votesMtx.Lock()
 	defer w.votesMtx.Unlock()
 

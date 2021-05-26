@@ -1,7 +1,7 @@
 package wendy
 
 import (
-	"log"
+	"errors"
 
 	"github.com/vegaprotocol/wendy/utils/list"
 )
@@ -58,89 +58,80 @@ func (p *Peer) LastSeqSeen(label string) uint64 { return p.bucket(label).lastSeq
 // AddVote adds a vote to the vote list.
 // It returns true if the vote hasn't been added before, otherwise, the vote is
 // not added and false is returned.
-func (p *Peer) _AddVote(v *Vote) bool {
+func (p *Peer) AddVote(v *Vote) (bool, error) {
 	bucket := p.bucket(v.Label)
 
-	// Votes are inserted in descendent order by Seq (higher sequence number on the front,
-	// lower on the back), this look like:
-	// [seqN, seqN-1, seqN-2, ... seq0]
+	// Since is most likely that votes are inserted in order (lower to higher
+	// seq numbers), we lookup the previous vote traversing the
+	// list list backwards (tail to head) so that if we insert vote with seq =
+	// N, we are looking for a vote with seq N or lower.
 	item := bucket.votes.First(func(e *list.Element) bool {
 		return e.Value.(*Vote).Seq <= v.Seq
-	})
+	}, list.Backward)
 
-	// found a vote with equal or higher sequence number
-	if item != nil {
-		// duplicated seq number
-		if item.Value.(*Vote).Seq == v.Seq {
-			return false
-		}
-		item = bucket.votes.InsertBefore(v, item)
-	} else {
-		// no votes with higher Sequence number.
-		item = bucket.votes.PushFront(v)
-	}
-
-	// update lastSeqSeen to the higher number before a gap is found.
-	for e := item; e != nil; e = e.Prev() {
-		if v := e.Value.(*Vote).Seq; v == bucket.lastSeqSeen+1 {
-			bucket.lastSeqSeen++
-		}
-	}
-
-	return true
-}
-
-func (p *Peer) AddVote(v *Vote) bool {
-	bucket := p.bucket(v.Label)
-
-	// Votes are inserted in descendent order by Seq (higher sequence number on the front,
-	// lower on the back), this look like:
-	// [seqN, seqN-1, seqN-2, ... seq0]
-	item := bucket.votes.First(func(e *list.Element) bool {
-		return e.Value.(*Vote).Seq <= v.Seq
-	})
-
-	// found a vote with equal or higher sequence number
+	// found a vote with lower or equal sequence number
 	if item != nil {
 		prev := item.Value.(*Vote)
 
 		// duplicated seq number
 		if prev.Seq == v.Seq {
-			return false
+			return false, nil
 		}
 
-		// verify hash links iff seq numbers are contiguous.
-		// if there is a gap (.Seq are apart for more than 1) between v and
-		// prev, we delay hash verification
-		if (v.Seq == prev.Seq+1) && v.PrevHash != prev.Hash() {
-			// TODO: Use an injected logger?
-			log.Printf("v.PrevHash does not match prev.Hash")
-			panic("XXX")
-			return false
+		// Validate hash linking
+		// We need to perform 2 validations:
+		// 1. added vote against its previous one: (prev.Hash() == addedVote.PrevHash)
+		if err := validHashes(prev, v); err != nil {
+			return false, err
 		}
 
-		item = bucket.votes.InsertBefore(v, item)
+		item = bucket.votes.InsertAfter(v, item)
+
+		// 2. added vote against its next one:     (addedVote.Hash() == next.PrevHash)
+		if next := item.Next(); next != nil {
+			if err := validHashes(v, next.Value.(*Vote)); err != nil {
+				return false, err
+			}
+		}
+
 	} else {
-		// no votes with higher Sequence number.
-		item = bucket.votes.PushFront(v)
+		// no votes with Sequence number.
+		// send it to the beginning of the list.
+		item = bucket.votes.PushBack(v)
 	}
 
 	// update lastSeqSeen to the higher number before a gap is found.
-	for e := item; e != nil; e = e.Prev() {
+	for e := item; e != nil; e = e.Next() {
 		if v := e.Value.(*Vote).Seq; v == bucket.lastSeqSeen+1 {
 			bucket.lastSeqSeen++
 		}
 	}
 
-	return true
+	return true, nil
+}
+
+func validHashes(prev, next *Vote) error {
+	// Only validate hashes when votes's Seq numbers are contiguous.
+	if prev.Seq+1 != next.Seq {
+		return nil
+	}
+
+	if prev.Hash() != next.PrevHash {
+		return errors.New("hashes don't match")
+	}
+
+	return nil
 }
 
 // AddVotes is a helper of AddVote to add more than one vote on a single call,
 // it ignores the return value.
-func (p *Peer) AddVotes(vs ...*Vote) {
+func (p *Peer) AddVotes(vs ...*Vote) error {
 	for _, v := range vs {
-		p.AddVote(v)
+		if _, err := p.AddVote(v); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func elementByHash(hash Hash) list.FilterFunc {

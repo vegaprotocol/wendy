@@ -8,7 +8,7 @@ import (
 )
 
 func TestPeersVoting(t *testing.T) {
-	t.Run("AddingVotes", func(t *testing.T) {
+	t.Run("Adding", func(t *testing.T) {
 		s := newTestPeer()
 		tests := []struct {
 			vote *Vote
@@ -26,10 +26,38 @@ func TestPeersVoting(t *testing.T) {
 		}
 
 		for _, test := range tests {
-			added := s.AddVote(test.vote)
+			added, err := s.AddVote(test.vote)
+			require.NoError(t, err)
 			assert.Equal(t, test.lastSeq, s.LastSeqSeen(test.vote.Label))
 			assert.Equal(t, test.added, added)
 		}
+	})
+
+	t.Run("AddingWithWrongHashing", func(t *testing.T) {
+		s := newTestPeer()
+		s.AddVotes(testVote0)
+
+		// next vote will have the wrong previous hash.
+		newVote := *testVote1 // this creates a copy
+		newVote.PrevHash = Checksum([]byte("wrong prev hash"))
+
+		_, err := s.AddVote(&newVote)
+		require.Error(t, err)
+	})
+
+	t.Run("AddingWithWrongHashingOnGap", func(t *testing.T) {
+		var err error
+		s := newTestPeer()
+
+		wrongVote2 := *testVote2 // this creates a copy
+		wrongVote2.PrevHash = Checksum([]byte("wrong prev hash"))
+
+		err = s.AddVotes(testVote0, &wrongVote2)
+		// testVote1 is missing so no error yet
+		require.NoError(t, err)
+
+		_, err = s.AddVote(testVote1)
+		require.Error(t, err)
 	})
 }
 
@@ -60,7 +88,9 @@ func TestBefore(t *testing.T) {
 
 	t.Run("OneCommited", func(t *testing.T) {
 		s := newTestPeer()
-		s.AddVotes(testVote0, testVote1, testVote2, testVote3, testVote4)
+		require.NoError(t,
+			s.AddVotes(testVote0, testVote1, testVote2, testVote3, testVote4),
+		)
 		s.UpdateTxSet(testTx2)
 
 		// tx1 commited
@@ -78,7 +108,9 @@ func TestBefore(t *testing.T) {
 
 	t.Run("BothVoted", func(t *testing.T) {
 		s := newTestPeer()
-		s.AddVotes(testVote0, testVote1, testVote2, testVote3, testVote4)
+		require.NoError(t,
+			s.AddVotes(testVote0, testVote1, testVote2, testVote3, testVote4),
+		)
 
 		assert.True(t, s.Before(testTx0, testTx1))
 		assert.True(t, s.Before(testTx1, testTx2))
@@ -99,8 +131,13 @@ func TestBeforeAcrossDifferentBucket(t *testing.T) {
 		txA := NewSimpleTx("tx0", "h0").withLabel("A")
 		txB := NewSimpleTx("tx1", "h1").withLabel("B")
 
-		require.True(t, s.AddVote(NewVote(s.pub, 0, txA)))
-		require.True(t, s.AddVote(NewVote(s.pub, 0, txB)))
+		added, err := s.AddVote(NewVote(s.pub, 0, txA))
+		require.NoError(t, err)
+		require.True(t, added)
+
+		added, err = s.AddVote(NewVote(s.pub, 0, txB))
+		require.NoError(t, err)
+		require.True(t, added)
 
 		assert.Panics(t, func() {
 			s.Before(txA, txB)

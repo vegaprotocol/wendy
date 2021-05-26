@@ -64,7 +64,7 @@ func NewVote(pub Pubkey, seq uint64, tx Tx) *Vote {
 }
 
 func (v *Vote) String() string {
-	return fmt.Sprintf("<pubkey=%s seq=%d, hash=%s>", v.Pubkey, v.Seq, v.TxHash)
+	return fmt.Sprintf("<pubkey=%s seq=%d, tx_hash=%s>", v.Pubkey, v.Seq, v.TxHash)
 }
 
 // WithPrevHash returns an updated Vote with hash set as .PrevHash.
