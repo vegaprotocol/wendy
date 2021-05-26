@@ -6,6 +6,8 @@ import (
 	"github.com/vegaprotocol/wendy/utils/list"
 )
 
+var ErrVoteHashesDontMatch = errors.New("vote hashes don't match")
+
 // peerBucket holds the state of a peer for a given label.
 // Peers have one bucket per label.
 type peerBucket struct {
@@ -117,7 +119,7 @@ func validHashes(prev, next *Vote) error {
 	}
 
 	if prev.Hash() != next.PrevHash {
-		return errors.New("hashes don't match")
+		return ErrVoteHashesDontMatch
 	}
 
 	return nil

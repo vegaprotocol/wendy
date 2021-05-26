@@ -95,10 +95,14 @@ func (w *Wendy) AddVote(v *Vote) (bool, error) {
 		w.peers[key] = peer
 	}
 
+	ok, err := peer.AddVote(v)
+	if err != nil {
+		return false, err
+	}
+
 	// Register the vote based on its tx.Hash
 	w.votes[v.TxHash] = v
-
-	return peer.AddVote(v)
+	return ok, nil
 }
 
 // CommitBlock iterate over the block's Txs set and remove them from Wendy's
