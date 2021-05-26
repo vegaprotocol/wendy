@@ -1,24 +1,25 @@
 package list
 
 import (
-	"container/list"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-var testFilter = func(e *list.Element) bool {
-	return e.Value.(int) > 3
-}
+var (
+	testFilter         = func(e *Element) bool { return e.Value.(int) > 3 }
+	testMatchAllFilter = func(e *Element) bool { return true }
+)
 
 var testItems = []int{1, 2, 3, 4, 5}
 
 func TestList(t *testing.T) {
 	tests := map[string]func(t *testing.T, list *List){
-		"First":        testListFirst,
-		"All":          testListAll,
-		"DiscardFirst": testListDiscardFirst,
-		"Discard":      testListDiscard,
+		"First":         testListFirst,
+		"FirstBackward": testListFirstBackward,
+		"All":           testListAll,
+		"DiscardFirst":  testListDiscardFirst,
+		"Discard":       testListDiscard,
 	}
 
 	for test, fn := range tests {
@@ -35,8 +36,15 @@ func TestList(t *testing.T) {
 
 func testListFirst(t *testing.T, l *List) {
 	found := l.First(testFilter)
-
 	require.Equal(t, 4, found.Value)
+}
+
+func testListFirstBackward(t *testing.T, l *List) {
+	first := l.First(testMatchAllFilter)
+	require.Equal(t, 1, first.Value)
+
+	last := l.First(testMatchAllFilter, Backward)
+	require.Equal(t, 5, last.Value)
 }
 
 func testListAll(t *testing.T, l *List) {
