@@ -168,11 +168,17 @@ func (w *Wendy) IsBlocked(tx Tx) bool {
 // Once a block has been added, all the txs will be removed from Wendy, thus
 // new blocks (NewBlock) won't return them anymore.
 func (w *Wendy) AddBlock(block *Block) {
+	w.txsMtx.Lock()
+	defer w.txsMtx.Unlock()
 	for _, tx := range block.Txs {
 		w.txs.RemoveByHash(tx.Hash())
 	}
 
-	// TODO: call updatetxset on peers and test it
+	w.votesMtx.Lock()
+	defer w.votesMtx.Unlock()
+	for _, peer := range w.peers {
+		peer.UpdateTxSet(block.Txs...)
+	}
 }
 
 // NewBlockOptions are options that control the behaviour of NewBlock method.
