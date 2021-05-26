@@ -13,6 +13,9 @@ const (
 )
 
 var (
+	// Quorum defines the ratio of neccesary votes to consider something valid.
+	// Changing this is uncommon but it might be required on some blockchains
+	// or for testing purposes.
 	Quorum = float64(2) / 3
 )
 
@@ -43,14 +46,21 @@ type Block struct {
 	Txs []Tx
 }
 
-type Validator []byte
+// Validators are identified by their public key.
+type Validator Pubkey
 
 type Vote struct {
 	Pubkey Pubkey
 
+	// Label is used for bucketing, it can be empty
 	Label string
 
-	// the following fields are used to produce the digest
+	// The following fields are used to produce the digest.
+	// NOTE: it's hard to keep in sync these fields and the one used in
+	// `digest()`.
+	// When adding a Field here you'll need to add it in `digest()` too.
+	// An alternative could be to define a tag on the fields to be used for the
+	// digest and use reflection.
 	Seq      uint64
 	TxHash   Hash
 	Time     time.Time
@@ -99,6 +109,7 @@ func (v *Vote) Hash() Hash {
 	return Checksum(v.digest())
 }
 
+// Key returns the Vote's Publickey formated as a ID.
 func (v *Vote) Key() ID {
 	return ID(v.Pubkey.String())
 }

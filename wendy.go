@@ -6,6 +6,11 @@ import (
 	"sync"
 )
 
+// Wendy is the root of the Wendy fairness implementation.  It holds a set of
+// peers and acts as a proxy to them. Wendy keeps track of all Peers's state
+// and aggregates them in order to do vote counting.
+//
+// Invoking Wendy methods is thread safe.
 type Wendy struct {
 	validators []Validator
 	quorum     int // quorum gets updated every time the validator set is updated.
@@ -13,11 +18,13 @@ type Wendy struct {
 	txsMtx sync.RWMutex
 	txs    *Txs
 
-	votesMtx sync.RWMutex
+	peersMtx sync.RWMutex
 	votes    map[Hash]*Vote
 	peers    map[ID]*Peer
 }
 
+// New returns a new Wendy instance.
+// Normally a mempool should hold only one instance.
 func New() *Wendy {
 	return &Wendy{
 		txs:   NewTxs(),
@@ -37,8 +44,8 @@ func (w *Wendy) UpdateValidatorSet(vs []Validator) {
 	) + 1
 	w.quorum = int(q)
 
-	w.votesMtx.Lock()
-	defer w.votesMtx.Unlock()
+	w.peersMtx.Lock()
+	defer w.peersMtx.Unlock()
 	peers := make(map[ID]*Peer)
 	// keep all the peers we already have and create new one if not present
 	// those old peers that are not part of the new set will be discarded.
@@ -70,7 +77,6 @@ func (w *Wendy) HonestMajority() int {
 
 // AddTx adds a tx to the list of tx to be mined.
 // AddTx returns false if the tx was already added.
-// NOTE: This function is safe for concurrent access.
 func (w *Wendy) AddTx(tx Tx) bool {
 	w.txsMtx.Lock()
 	defer w.txsMtx.Unlock()
@@ -81,10 +87,9 @@ func (w *Wendy) AddTx(tx Tx) bool {
 // AddVote adds a vote to the list of votes.
 // Votes are positioned given it's sequence number.
 // AddVote returns alse if the vote was already added.
-// NOTE: This function is safe for concurrent access.
 func (w *Wendy) AddVote(v *Vote) (bool, error) {
-	w.votesMtx.Lock()
-	defer w.votesMtx.Unlock()
+	w.peersMtx.Lock()
+	defer w.peersMtx.Unlock()
 
 	key := ID(v.Pubkey.String())
 	// Register the vote on the peer
@@ -109,8 +114,8 @@ func (w *Wendy) AddVote(v *Vote) (bool, error) {
 // internal state.
 // Txs present on block were probbaly added in the past via AddTx().
 func (w *Wendy) CommitBlock(block Block) {
-	w.votesMtx.Lock()
-	defer w.votesMtx.Unlock()
+	w.peersMtx.Lock()
+	defer w.peersMtx.Unlock()
 
 	for _, peer := range w.peers {
 		peer.UpdateTxSet(block.Txs...)
@@ -119,10 +124,9 @@ func (w *Wendy) CommitBlock(block Block) {
 
 // VoteByTxHash returns a vote given its tx.Hash
 // Returns nil if the vote hasn't been seen.
-// NOTE: This function is safe for concurrent access.
 func (w *Wendy) VoteByTxHash(hash Hash) *Vote {
-	w.votesMtx.RLock()
-	defer w.votesMtx.RUnlock()
+	w.peersMtx.RLock()
+	defer w.peersMtx.RUnlock()
 	return w.votes[hash]
 }
 
@@ -130,8 +134,8 @@ func (w *Wendy) VoteByTxHash(hash Hash) *Vote {
 // It returns true if fn returned true at least w.Quorum() times.
 // NOTE: This function is safe for concurrent access.
 func (w *Wendy) hasQuorum(fn func(*Peer) bool) bool {
-	w.votesMtx.RLock()
-	defer w.votesMtx.RUnlock()
+	w.peersMtx.RLock()
+	defer w.peersMtx.RUnlock()
 
 	var votes int
 	for _, peer := range w.peers {
@@ -174,8 +178,8 @@ func (w *Wendy) AddBlock(block *Block) {
 		w.txs.RemoveByHash(tx.Hash())
 	}
 
-	w.votesMtx.Lock()
-	defer w.votesMtx.Unlock()
+	w.peersMtx.Lock()
+	defer w.peersMtx.Unlock()
 	for _, peer := range w.peers {
 		peer.UpdateTxSet(block.Txs...)
 	}
