@@ -33,9 +33,10 @@ type NodeDebugFn func(*Node, string) bool
 // meaning that if NodeA is connected to NodeB, NodeB will receive messages
 // from NodeA.
 type Node struct {
-	wendy *wendy.Wendy
-	pub   wendy.Pubkey
-	peers []*Node
+	wendy    *wendy.Wendy
+	pub      wendy.Pubkey
+	peers    []*Node
+	lastVote *wendy.Vote
 
 	seq uint64
 
@@ -85,7 +86,12 @@ func (n *Node) AddPeers(peers ...*Node) {
 
 func (n *Node) nextVote(tx wendy.Tx) *wendy.Vote {
 	seq := atomic.AddUint64(&n.seq, 1)
-	return wendy.NewVote(n.pub, seq-1, tx)
+	vote := wendy.NewVote(n.pub, seq-1, tx)
+	if last := n.lastVote; last != nil {
+		vote.PrevHash = last.Hash()
+	}
+	n.lastVote = vote
+	return vote
 }
 
 func (n *Node) AddTx(tx wendy.Tx) {
@@ -119,9 +125,14 @@ func (n *Node) handleTx(msg *nodeTx) {
 	n.handleVote(myVote)
 }
 
-func (n *Node) handleVote(msg *nodeVote) {
-	if isNew := n.wendy.AddVote(msg.vote); !isNew {
-		return
+func (n *Node) handleVote(msg *nodeVote) error {
+	isNew, err := n.wendy.AddVote(msg.vote)
+	if err != nil {
+		return err
+	}
+
+	if !isNew {
+		return nil
 	}
 
 	from := msg.from
@@ -133,6 +144,7 @@ func (n *Node) handleVote(msg *nodeVote) {
 
 		n.send(peer, msg)
 	}
+	return nil
 }
 
 // send sends a message to a given peer asynchronously (inside a goroutine).
