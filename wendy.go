@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-// Wendy is the root of the Wendy fairness implementation.  It holds a set of
+// Wendy is the root of the Wendy fairness implementation. It holds a set of
 // peers and acts as a proxy to them. Wendy keeps track of all Peers's state
 // and aggregates them in order to do vote counting.
 //
@@ -34,7 +34,7 @@ func New() *Wendy {
 }
 
 // UpdateValidatorSet updates the list of validators in the consensus.
-// Updating the validator set might affect the return value of Quorum().
+// Updating the validator set might affect the value of the Quorum field.
 // Upon updating the peers that are not in the new validator set are removed.
 func (w *Wendy) UpdateValidatorSet(vs []Validator) {
 	w.validators = vs

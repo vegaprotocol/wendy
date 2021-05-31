@@ -203,6 +203,8 @@ func (p *Peer) Seen(tx Tx) bool {
 // UpdateTxSet will remove from its internal state all the references to a
 // corresponging tx present in the txs argument.
 // updateTxSet should be called when a new block is commited.
+// NOTE: This should interface a blockchain implementation to keep track of
+// commited Txs.
 func (p *Peer) UpdateTxSet(txs ...Tx) {
 	for _, tx := range txs {
 		p.bucket(tx.Label()).commitedHashes[tx.Hash()] = struct{}{}
