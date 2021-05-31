@@ -122,7 +122,7 @@ func (n *Node) handleTx(msg *nodeTx) {
 		n.send(peer, msg)
 	}
 	myVote := &nodeVote{from: n, vote: n.nextVote(msg.tx)}
-	n.handleVote(myVote)
+	_ = n.handleVote(myVote)
 }
 
 func (n *Node) handleVote(msg *nodeVote) error {
@@ -176,7 +176,7 @@ func (n *Node) recvMsgs() {
 		case tx := <-n.txs:
 			handler = func() { n.handleTx(&tx) }
 		case vote := <-n.votes:
-			handler = func() { n.handleVote(&vote) }
+			handler = func() { _ = n.handleVote(&vote) }
 		}
 
 		if fn := n.RecvCb; fn != nil {

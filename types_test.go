@@ -40,12 +40,11 @@ var (
 )
 
 var (
-	testVote0    = &Vote{Pubkey: pub0, Seq: 0, TxHash: testTx0.Hash()}
-	testVote1    = &Vote{Pubkey: pub0, Seq: 1, TxHash: testTx1.Hash(), PrevHash: testVote0.Hash()}
-	testVote2    = &Vote{Pubkey: pub0, Seq: 2, TxHash: testTx2.Hash(), PrevHash: testVote1.Hash()}
-	testVote3    = &Vote{Pubkey: pub0, Seq: 3, TxHash: testTx3.Hash(), PrevHash: testVote2.Hash()}
-	testVote4    = &Vote{Pubkey: pub0, Seq: 4, TxHash: testTx4.Hash(), PrevHash: testVote3.Hash()}
-	allTestVotes = []*Vote{testVote0, testVote1, testVote2, testVote3, testVote4}
+	testVote0 = &Vote{Pubkey: pub0, Seq: 0, TxHash: testTx0.Hash()}
+	testVote1 = &Vote{Pubkey: pub0, Seq: 1, TxHash: testTx1.Hash(), PrevHash: testVote0.Hash()}
+	testVote2 = &Vote{Pubkey: pub0, Seq: 2, TxHash: testTx2.Hash(), PrevHash: testVote1.Hash()}
+	testVote3 = &Vote{Pubkey: pub0, Seq: 3, TxHash: testTx3.Hash(), PrevHash: testVote2.Hash()}
+	testVote4 = &Vote{Pubkey: pub0, Seq: 4, TxHash: testTx4.Hash(), PrevHash: testVote3.Hash()}
 )
 
 // Note that Pubkey (pub0) matches the one used on testVote<N> on purpose

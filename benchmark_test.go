@@ -3,6 +3,8 @@ package wendy
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkIsBlockedBy2(b *testing.B)    { benchmarkIsBlockedBy(b, 2) }
@@ -30,10 +32,16 @@ func benchmarkIsBlockedBy(b *testing.B, n int) {
 	}
 
 	// all validators vote on every tx
-	for i, tx := range txs {
-		for _, v := range vs {
+	for _, v := range vs {
+		var prevVote *Vote
+		for i, tx := range txs {
 			vote := NewVote(Pubkey(v), uint64(i), tx)
-			w.AddVote(vote)
+			if pv := prevVote; pv != nil {
+				vote.WithPrevHash(pv.Hash())
+			}
+			prevVote = vote
+			_, err := w.AddVote(vote)
+			require.NoError(b, err)
 		}
 	}
 

@@ -110,6 +110,15 @@ func (w *Wendy) AddVote(v *Vote) (bool, error) {
 	return ok, nil
 }
 
+func (w *Wendy) AddVotes(vs ...*Vote) error {
+	for _, v := range vs {
+		if _, err := w.AddVote(v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CommitBlock iterate over the block's Txs set and remove them from Wendy's
 // internal state.
 // Txs present on block were probbaly added in the past via AddTx().

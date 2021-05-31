@@ -35,7 +35,7 @@ func TestPeersVoting(t *testing.T) {
 
 	t.Run("AddingWithWrongHashing", func(t *testing.T) {
 		s := newTestPeer()
-		s.AddVotes(testVote0)
+		require.NoError(t, s.AddVotes(testVote0))
 
 		// next vote will have the wrong previous hash.
 		newVote := *testVote1 // this creates a copy

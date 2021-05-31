@@ -24,9 +24,7 @@ func TestIsBlockedBy(t *testing.T) {
 			vote0 = NewVote(pub0, 0, testTx0)
 			vote1 = NewVote(pub0, 1, testTx1).WithPrevHash(vote0.Hash())
 		)
-
-		w.AddVote(vote0)
-		w.AddVote(vote1)
+		require.NoError(t, w.AddVotes(vote0, vote1))
 		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
@@ -35,9 +33,7 @@ func TestIsBlockedBy(t *testing.T) {
 			vote0 = NewVote(pub1, 0, testTx0)
 			vote1 = NewVote(pub1, 1, testTx1).WithPrevHash(vote0.Hash())
 		)
-
-		w.AddVote(vote0)
-		w.AddVote(vote1)
+		require.NoError(t, w.AddVotes(vote0, vote1))
 		assert.True(t, w.IsBlockedBy(testTx0, testTx1), "should be blocked for HonestParties %d", w.HonestParties())
 	})
 
@@ -46,9 +42,7 @@ func TestIsBlockedBy(t *testing.T) {
 			vote0 = NewVote(pub2, 0, testTx0)
 			vote1 = NewVote(pub2, 1, testTx1).WithPrevHash(vote0.Hash())
 		)
-
-		w.AddVote(vote0)
-		w.AddVote(vote1)
+		require.NoError(t, w.AddVotes(vote0, vote1))
 		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "should NOT be blocked for HonestParties %d", w.HonestParties())
 	})
 
@@ -57,9 +51,7 @@ func TestIsBlockedBy(t *testing.T) {
 			vote0 = NewVote(pub2, 0, testTx1) // these are in different order
 			vote1 = NewVote(pub2, 1, testTx0).WithPrevHash(vote0.Hash())
 		)
-
-		w.AddVote(vote0)
-		w.AddVote(vote1)
+		require.NoError(t, w.AddVotes(vote0, vote1))
 		assert.False(t, w.IsBlockedBy(testTx0, testTx1), "IsBlockedBy MUST be monotone")
 	})
 }
@@ -74,7 +66,9 @@ func TestVoteByHash(t *testing.T) {
 
 	assert.Nil(t, w.VoteByTxHash(hash))
 
-	w.AddVote(vote)
+	require.NoError(t,
+		w.AddVotes(vote),
+	)
 	got := w.VoteByTxHash(hash)
 
 	assert.Equal(t, got, vote)
@@ -89,26 +83,28 @@ func TestIsBlocked(t *testing.T) {
 	})
 	require.NotZero(t, w.HonestParties(), "can't run IsBlockedBy when HonestParties is zero")
 
-	w.AddVote(NewVote(pub0, 0, testTx0))
+	require.NoError(t, w.AddVotes(NewVote(pub0, 0, testTx0)))
 	require.True(t, w.IsBlocked(testTx0), "should be blocked with 1of4")
 
-	w.AddVote(NewVote(pub1, 0, testTx0))
+	require.NoError(t, w.AddVotes(NewVote(pub1, 0, testTx0)))
 	require.True(t, w.IsBlocked(testTx0), "should be blocked with 2of4")
 
-	w.AddVote(NewVote(pub2, 0, testTx0))
+	require.NoError(t, w.AddVotes(NewVote(pub2, 0, testTx0)))
 	require.False(t, w.IsBlocked(testTx0), "should be blocked with 3of4")
 
 	t.Run("Gapped", func(t *testing.T) {
 		tx := NewSimpleTx("tx-gapped", "hash-gapped")
 
-		w.AddVote(NewVote(pub0, 2, tx))
-		w.AddVote(NewVote(pub1, 2, tx))
-		w.AddVote(NewVote(pub2, 2, tx))
+		require.NoError(t, w.AddVotes(
+			NewVote(pub0, 2, tx),
+			NewVote(pub1, 2, tx),
+			NewVote(pub2, 2, tx),
+		))
 		require.True(t, w.IsBlocked(tx), "should be blocked if seq is gapped")
 	})
 }
 
-func newWendyFromTxsMap(txsMap map[ID][]Tx) *Wendy {
+func newWendyFromTxsMap(t *testing.T, txsMap map[ID][]Tx) *Wendy {
 	w := New()
 
 	var nodes []Validator
@@ -138,7 +134,8 @@ func newWendyFromTxsMap(txsMap map[ID][]Tx) *Wendy {
 			if lastAddedVote != nil {
 				vote.WithPrevHash(lastAddedVote.Hash())
 			}
-			w.AddVote(vote)
+			_, err := w.AddVote(vote)
+			require.NoError(t, err)
 			lastAddedVote = vote
 
 			w.AddTx(tx)
@@ -170,7 +167,7 @@ func TestBlockingSet(t *testing.T) {
 		// tx1. This is, in fact, the reason we can only require that transactions
 		// end up in the same block, rather than implementing an order right away.
 
-		w := newWendyFromTxsMap(
+		w := newWendyFromTxsMap(t,
 			map[ID][]Tx{
 				"0x00": {testTx1, testTx2, testTx3, testTx4, testTx5},
 				"0x01": {testTx2, testTx3, testTx4, testTx5, testTx1},
@@ -215,7 +212,7 @@ func TestBlockingSet(t *testing.T) {
 		// tx1. This is, in fact, the reason we can only require that transactions
 		// end up in the same block, rather than implementing an order right away.
 
-		w := newWendyFromTxsMap(
+		w := newWendyFromTxsMap(t,
 			map[ID][]Tx{
 				"0x00": {testTx1, testTx2, testTx3, testTx4, testTx5},
 				"0x01": {testTx1, testTx2, testTx3, testTx4, testTx5},
@@ -237,7 +234,7 @@ func TestBlockingSet(t *testing.T) {
 
 func TestNewBlock(t *testing.T) {
 	allTxs := []Tx{testTx0, testTx1, testTx2, testTx3, testTx4}
-	w := newWendyFromTxsMap(
+	w := newWendyFromTxsMap(t,
 		map[ID][]Tx{
 			"0x00": allTxs,
 		},
@@ -274,7 +271,7 @@ func TestNewBlock(t *testing.T) {
 
 func TestAddBlock(t *testing.T) {
 	allTxs := []Tx{testTx0, testTx1, testTx2, testTx3, testTx4}
-	w := newWendyFromTxsMap(
+	w := newWendyFromTxsMap(t,
 		map[ID][]Tx{
 			"0x00": allTxs,
 		},
