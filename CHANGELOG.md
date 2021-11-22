@@ -3,16 +3,16 @@
 ## Unreleased
 
 ### 🚨 Breaking changes
-- [](https://github.com/vegaprotocol/vega/pull/) - 
+- [](https://github.com/vegaprotocol/wendy/pull/) - 
 
 ### 🗑️ Deprecation
-- [](https://github.com/vegaprotocol/vega/pull/) - 
+- [](https://github.com/vegaprotocol/wendy/pull/) - 
 
 ### 🛠 Improvements
-- [](https://github.com/vegaprotocol/vega/pull/) - 
+- [38](https://github.com/vegaprotocol/wendy/pull/38) - Add changelog, project board Github actions and linked PR action version
 
 ### 🐛 Fixes
-- [](https://github.com/vegaprotocol/vega/pull/) - 
+- [](https://github.com/vegaprotocol/wendy/pull/) - 
 
 
 
